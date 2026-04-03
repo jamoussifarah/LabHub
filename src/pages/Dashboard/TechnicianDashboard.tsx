@@ -132,7 +132,7 @@ const TechnicianDashboard = () => {
     { key: "profile",      label: "Mon profil",      Icon: Icons.Profile },
   ];
 
-  // ── Sidebar ────────────────────────────────────────────────────────────────
+ 
   const Sidebar = () => (
     <>
       {/* Overlay mobile */}
