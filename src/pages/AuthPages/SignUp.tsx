@@ -6,8 +6,8 @@ export default function SignUp() {
   return (
     <>
       <PageMeta
-        title="React.js SignUp Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js SignUp Tables Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+         title="Inscription | LabHub — ENIC Carthage"
+         description="Créez votre compte sur la plateforme LabHub de l'École Nationale des Ingénieurs de Carthage."
       />
       <AuthLayout>
         <SignUpForm />
