@@ -21,6 +21,7 @@ import Home from "./pages/Dashboard/Home";
 import TechnicianDashboard from "./pages/Dashboard/TechnicianDashboard";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import Laboratoires from "./pages/Laboratoires";
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            <Route path="/laboratoires" element={<Laboratoires />} />
             <Route index path="/"            element={<Home />} />
             <Route path="/profile"           element={<UserProfiles />} />
             <Route path="/calendar"          element={<Calendar />} />

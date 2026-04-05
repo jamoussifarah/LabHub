@@ -65,11 +65,12 @@ const navItems: NavItem[] = [
     subItems: [{ name: "Liste des réclamations", path: "/basic-tables", pro: false }],
   },
   {
-    name: "Pages",
+    name: "Machines et laboratoires",
     icon: <PageIcon />,
     subItems: [
-      { name: "Page vide", path: "/blank", pro: false },
-      { name: "Erreur 404", path: "/error-404", pro: false },
+      { name: "Liste des machines", path: "/blank", pro: false },
+      { name: "ERROR", path: "/error-404", pro: false },
+      {name: "Liste des laboratoires", path: "/laboratoires", pro: false},
     ],
   },
 ];
