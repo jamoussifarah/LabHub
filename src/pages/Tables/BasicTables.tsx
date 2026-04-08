@@ -1,7 +1,7 @@
+
 import { useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 
-// Types
 interface Reclamation {
   id: string;
   machine: string;
@@ -13,6 +13,7 @@ interface Reclamation {
   technicien: string | null;
   laboratoire?: string;
   description?: string;
+  photoUrl?: string | null; // ← corrigé
 }
 
 const reclamationsData: Reclamation[] = [
@@ -27,6 +28,7 @@ const reclamationsData: Reclamation[] = [
     technicien: null,
     laboratoire: "Labo Info 1",
     description: "L'ordinateur ne démarre plus. Écran noir au démarrage.",
+    photoUrl: "https://placehold.co/400x300?text=Photo+Machine",
   },
   {
     id: "REC-2024-002",
@@ -39,6 +41,7 @@ const reclamationsData: Reclamation[] = [
     technicien: "Ahmed Khaled",
     laboratoire: "Labo Réseau",
     description: "Connexion internet instable.",
+    photoUrl: null,
   },
   {
     id: "REC-2024-003",
@@ -51,6 +54,7 @@ const reclamationsData: Reclamation[] = [
     technicien: null,
     laboratoire: "Labo Info 2",
     description: "Le logiciel de simulation plante au démarrage.",
+    photoUrl: "https://placehold.co/400x300?text=Photo+Logiciel",
   },
   {
     id: "REC-2024-004",
@@ -63,6 +67,7 @@ const reclamationsData: Reclamation[] = [
     technicien: "Karim Sassi",
     laboratoire: "Labo Électro",
     description: "Disjoncteur déclenché dans la salle.",
+    photoUrl: null,
   },
   {
     id: "REC-2024-005",
@@ -75,6 +80,7 @@ const reclamationsData: Reclamation[] = [
     technicien: null,
     laboratoire: "Labo Info 1",
     description: "Clavier défaillant.",
+    photoUrl: "https://placehold.co/400x300?text=Photo+Clavier",
   },
   {
     id: "REC-2024-006",
@@ -87,6 +93,7 @@ const reclamationsData: Reclamation[] = [
     technicien: "Ahmed Khaled",
     laboratoire: "Labo Mécanique",
     description: "Outil manquant dans la salle.",
+    photoUrl: null,
   },
 ];
 
@@ -108,6 +115,13 @@ const statutStyle: Record<string, string> = {
   "En cours": "bg-green-100 text-green-700",
   Résolu: "bg-gray-100 text-gray-600",
 };
+// Mapper statuts backend → frontend
+const statutMapping: Record<string, string> = {
+  "OPEN": "En attente",
+  "IN_PROGRESS": "En cours",
+  "RESOLVED": "Résolu",
+  "CLOSED": "Fermé"
+}
 
 export default function Reclamations() {
   const [reclamations, setReclamations] = useState<Reclamation[]>(reclamationsData);
@@ -147,7 +161,6 @@ export default function Reclamations() {
         description="Page de gestion des réclamations"
       />
 
-      {/* Page header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
           Gestion des réclamations
@@ -157,21 +170,10 @@ export default function Reclamations() {
         </p>
       </div>
 
-      {/* Search + Filter */}
       <div className="flex items-center gap-3 mb-5">
         <div className="relative flex-1">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
@@ -193,17 +195,13 @@ export default function Reclamations() {
         </select>
       </div>
 
-      {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                {["ID", "MACHINE", "TYPE", "ÉTUDIANT", "DATE", "PRIORITÉ", "STATUT", "TECHNICIEN", "ACTIONS"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap"
-                  >
+                {["ID", "MACHINE", "TYPE", "ÉTUDIANT", "DATE", "PRIORITÉ", "STATUT", "PHOTO", "TECHNICIEN", "ACTIONS"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -211,15 +209,9 @@ export default function Reclamations() {
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr
-                  key={r.id}
-                  className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-                >
+                <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedRec(r)}
-                      className="text-blue-600 font-medium hover:underline"
-                    >
+                    <button onClick={() => setSelectedRec(r)} className="text-blue-600 font-medium hover:underline">
                       {r.id}
                     </button>
                   </td>
@@ -235,14 +227,25 @@ export default function Reclamations() {
                       {r.statut}
                     </span>
                   </td>
+
+                  {/* ← COLONNE PHOTO AJOUTÉE */}
+                  <td className="px-4 py-3">
+                    {r.photoUrl ? (
+                      <img
+                        src={r.photoUrl}
+                        alt="photo"
+                        className="w-10 h-10 rounded-lg object-cover cursor-pointer border border-gray-200 hover:scale-110 transition-transform"
+                        onClick={() => setSelectedRec(r)}
+                      />
+                    ) : (
+                      <span className="text-gray-300 text-xs">–</span>
+                    )}
+                  </td>
+
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.technicien ?? "–"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedRec(r)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
-                        title="Voir détails"
-                      >
+                      <button onClick={() => setSelectedRec(r)} className="text-gray-400 hover:text-blue-600 transition-colors" title="Voir détails">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -250,10 +253,7 @@ export default function Reclamations() {
                       </button>
                       {r.statut === "En attente" && (
                         <button
-                          onClick={() => {
-                            setAssignModal(r);
-                            setSelectedTech(techniciensDisponibles[0]);
-                          }}
+                          onClick={() => { setAssignModal(r); setSelectedTech(techniciensDisponibles[0]); }}
                           className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                         >
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,22 +271,29 @@ export default function Reclamations() {
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal — avec photo */}
       {selectedRec && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[460px] p-6 relative mx-4">
-            <button
-              onClick={() => setSelectedRec(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[500px] p-6 relative mx-4">
+            <button onClick={() => setSelectedRec(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-1">
-              Détails de la réclamation
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-1">Détails de la réclamation</h2>
             <p className="text-sm text-gray-400 mb-5">{selectedRec.id}</p>
+
+            {/* ← PHOTO DANS MODAL */}
+            {selectedRec.photoUrl && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-400 mb-2">Photo du problème</p>
+                <img
+                  src={selectedRec.photoUrl}
+                  alt="photo problème"
+                  className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               {[
@@ -318,17 +325,12 @@ export default function Reclamations() {
       {assignModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[400px] p-6 relative mx-4">
-            <button
-              onClick={() => setAssignModal(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
+            <button onClick={() => setAssignModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-1">
-              Assigner un technicien
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-1">Assigner un technicien</h2>
             <p className="text-sm text-gray-400 mb-5">Réclamation: {assignModal.id}</p>
 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -345,16 +347,10 @@ export default function Reclamations() {
             </select>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setAssignModal(null)}
-                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
+              <button onClick={() => setAssignModal(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 Annuler
               </button>
-              <button
-                onClick={handleConfirmAssign}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              >
+              <button onClick={handleConfirmAssign} className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
                 Confirmer
               </button>
             </div>

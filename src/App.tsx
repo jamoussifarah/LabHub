@@ -35,7 +35,7 @@ export default function App() {
           {/* ── Dashboard Admin (protégé, role=admin) ──────────────── */}
           <Route
             element={
-              <ProtectedRoute allowedRole="admin">
+              <ProtectedRoute allowedRole="ADMIN">
                 <AppLayout />
               </ProtectedRoute>
             }
@@ -61,7 +61,7 @@ export default function App() {
           <Route
             path="/technicien/dashboard"
             element={
-              <ProtectedRoute allowedRole="technicien">
+              <ProtectedRoute allowedRole="TECHNICIEN">
                 <TechnicianDashboard />
               </ProtectedRoute>
             }

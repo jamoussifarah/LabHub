@@ -1,17 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
-import { RECLAMATIONS, Reclamation, StatutReclamation } from "../../data/mockData";
+import { Reclamation, StatutReclamation } from "../../data/mockData";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type View = "dashboard" | "profile" | "agenda" | "reclamations";
 
-// ─── Couleurs statut / priorité ───────────────────────────────────────────────
 const statutColors: Record<StatutReclamation, string> = {
-  nouvelle:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  en_cours:  "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  resolue:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  fermee:    "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+  nouvelle: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  en_cours: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  resolue:  "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  fermee:   "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
 };
 const statutLabels: Record<StatutReclamation, string> = {
   nouvelle: "Nouvelle", en_cours: "En cours", resolue: "Résolue", fermee: "Fermée",
@@ -26,18 +24,52 @@ const prioriteBar: Record<string, string> = {
   faible: "bg-gray-300", moyenne: "bg-blue-400", haute: "bg-orange-400", urgente: "bg-red-500",
 };
 
-// ─── Agenda mock ──────────────────────────────────────────────────────────────
+// mapper backend → frontend
+const mapPriorite = (p: string): string => {
+  const map: Record<string, string> = {
+    LOW: "faible", MEDIUM: "moyenne", HIGH: "haute", URGENT: "urgente",
+  };
+  return map[p] ?? "moyenne";
+};
+
+const mapStatut = (s: string): StatutReclamation => {
+  const map: Record<string, StatutReclamation> = {
+    OPEN: "nouvelle", IN_PROGRESS: "en_cours",
+    RESOLVED: "resolue", CLOSED: "fermee",
+  };
+  return map[s] ?? "nouvelle";
+};
+
+const mapComplaint = (c: any): Reclamation => ({
+  id: c.id,
+  numero: c.id?.slice(-6)?.toUpperCase() ?? "------",
+  titre: c.subject,
+  description: c.description,
+  client: c.userName,
+  dateCreation: c.createdAt
+    ? new Date(c.createdAt).toLocaleDateString("fr-FR")
+    : "—",
+  categorie: c.category ?? "—",
+  priorite: mapPriorite(c.priority) as any,
+  statut: mapStatut(c.status),
+  technicienAssigneId: c.technicienId ?? null,
+  technicienAssigneNom: c.technicienName ?? null,
+  labName: c.labName,
+  machine: c.machine,
+  photoUrl: c.photoUrl,
+  resolution: c.resolution,
+});
+
 const AGENDA = [
-  { id: 1, jour: "Lundi",    date: "07 Avr", heure: "09:00", titre: "Inspection Lab A",       lieu: "Bâtiment A",  couleur: "bg-blue-500" },
-  { id: 2, jour: "Lundi",    date: "07 Avr", heure: "14:00", titre: "Maintenance serveur",    lieu: "Salle IT",    couleur: "bg-orange-500" },
-  { id: 3, jour: "Mardi",    date: "08 Avr", heure: "10:00", titre: "Réunion équipe tech",    lieu: "Salle B204",  couleur: "bg-purple-500" },
-  { id: 4, jour: "Mercredi", date: "09 Avr", heure: "08:30", titre: "Calibrage équipements",  lieu: "Lab Chimie",  couleur: "bg-green-500" },
-  { id: 5, jour: "Mercredi", date: "09 Avr", heure: "15:00", titre: "Formation sécurité",     lieu: "Amphi 1",     couleur: "bg-red-500" },
-  { id: 6, jour: "Jeudi",    date: "10 Avr", heure: "11:00", titre: "Contrôle qualité",       lieu: "Lab Physique", couleur: "bg-teal-500" },
-  { id: 7, jour: "Vendredi", date: "11 Avr", heure: "09:30", titre: "Rapport hebdomadaire",   lieu: "Bureau chef",  couleur: "bg-indigo-500" },
+  { id: 1, jour: "Lundi",    date: "07 Avr", heure: "09:00", titre: "Inspection Lab A",      lieu: "Bâtiment A",   couleur: "bg-blue-500" },
+  { id: 2, jour: "Lundi",    date: "07 Avr", heure: "14:00", titre: "Maintenance serveur",   lieu: "Salle IT",     couleur: "bg-orange-500" },
+  { id: 3, jour: "Mardi",    date: "08 Avr", heure: "10:00", titre: "Réunion équipe tech",   lieu: "Salle B204",   couleur: "bg-purple-500" },
+  { id: 4, jour: "Mercredi", date: "09 Avr", heure: "08:30", titre: "Calibrage équipements", lieu: "Lab Chimie",   couleur: "bg-green-500" },
+  { id: 5, jour: "Mercredi", date: "09 Avr", heure: "15:00", titre: "Formation sécurité",    lieu: "Amphi 1",      couleur: "bg-red-500" },
+  { id: 6, jour: "Jeudi",    date: "10 Avr", heure: "11:00", titre: "Contrôle qualité",      lieu: "Lab Physique", couleur: "bg-teal-500" },
+  { id: 7, jour: "Vendredi", date: "11 Avr", heure: "09:30", titre: "Rapport hebdomadaire",  lieu: "Bureau chef",  couleur: "bg-indigo-500" },
 ];
 
-// ─── Icônes SVG inline ────────────────────────────────────────────────────────
 const Icons = {
   Dashboard: () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,25 +129,60 @@ const Icons = {
   ),
 };
 
-// ─── Composant principal ──────────────────────────────────────────────────────
 const TechnicianDashboard = () => {
-  const { user, logout }    = useAuth();
-  const navigate            = useNavigate();
-  const [view, setView]     = useState<View>("dashboard");
+  const { user, logout }  = useAuth();
+  const navigate          = useNavigate();
+  const [view, setView]   = useState<View>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selected, setSelected]       = useState<Reclamation | null>(null);
   const [note, setNote]               = useState("");
+  const [tachesState, setTachesState] = useState<Reclamation[]>([]);
+  const [loading, setLoading]         = useState(true);
 
-  const taches: Reclamation[] = RECLAMATIONS.filter(
-    (r) => r.technicienAssigneId === user?.id
-  );
-  const [tachesState, setTachesState] = useState<Reclamation[]>(taches);
+  // ── Charger réclamations depuis backend ────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`http://localhost:8087/api/complaints/technicien/${user.id}`)
+      .then((r) => r.json())
+      .then((data) => setTachesState(data.map(mapComplaint)))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [user?.id]);
 
   const handleLogout = () => { logout(); navigate("/signin"); };
 
-  const updateStatut = (id: number, statut: StatutReclamation) => {
-    setTachesState((prev) => prev.map((t) => t.id === id ? { ...t, statut } : t));
-    if (selected?.id === id) setSelected((prev) => prev ? { ...prev, statut } : prev);
+  // ── Mettre à jour statut via backend ──────────────────────────────────────
+  const updateStatut = async (id: string, statut: StatutReclamation) => {
+    const token = localStorage.getItem("reclamation_token");
+    try {
+      if (statut === "en_cours") {
+        await fetch(`http://localhost:8087/api/complaints/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "IN_PROGRESS" }),
+        });
+      } else if (statut === "resolue") {
+        await fetch(
+          `http://localhost:8087/api/complaints/${id}/resolve?resolution=${encodeURIComponent(note || "Problème résolu")}`,
+          {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      }
+
+      setTachesState((prev) =>
+        prev.map((t) => t.id === id ? { ...t, statut } : t)
+      );
+      if (selected?.id === id)
+        setSelected((prev) => prev ? { ...prev, statut } : prev);
+      setNote("");
+    } catch (e) {
+      console.error("Erreur update statut:", e);
+    }
   };
 
   const stats = {
@@ -132,26 +199,12 @@ const TechnicianDashboard = () => {
     { key: "profile",      label: "Mon profil",      Icon: Icons.Profile },
   ];
 
- 
   const Sidebar = () => (
     <>
-      {/* Overlay mobile */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
-
-      <aside className={`
-        fixed top-0 left-0 z-30 h-full w-72
-        bg-white dark:bg-boxdark border-r border-stroke dark:border-strokedark
-        flex flex-col
-        transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static lg:z-auto
-      `}>
-        {/* Logo */}
+      <aside className={`fixed top-0 left-0 z-30 h-full w-72 bg-white dark:bg-boxdark border-r border-stroke dark:border-strokedark flex flex-col transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 lg:static lg:z-auto`}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-stroke dark:border-strokedark">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
@@ -167,15 +220,11 @@ const TechnicianDashboard = () => {
               <p className="text-xs text-gray-500">ENIC Carthage</p>
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700">
             <Icons.Close />
           </button>
         </div>
 
-        {/* Profil résumé */}
         <div className="px-6 py-4 border-b border-stroke dark:border-strokedark">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -191,62 +240,34 @@ const TechnicianDashboard = () => {
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Menu principal
-          </p>
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Menu principal</p>
           {navItems.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              onClick={() => { setView(key); setSidebarOpen(false); }}
+            <button key={key} onClick={() => { setView(key); setSidebarOpen(false); }}
               style={{ transition: "all 0.2s cubic-bezier(.4,0,.2,1)" }}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                active:scale-95
-                ${view === key
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
-                }
-              `}
-            >
-              <span className={`transition-colors duration-200 ${view === key ? "text-primary" : ""}`}>
-                <Icon />
-              </span>
-              <span className={`transition-colors duration-200 ${view === key ? "text-primary font-semibold" : ""}`}>
-                {label}
-              </span>
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium active:scale-95 ${view === key ? "bg-primary/10 text-primary border border-primary/20 shadow-sm" : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"}`}>
+              <span className={`transition-colors duration-200 ${view === key ? "text-primary" : ""}`}><Icon /></span>
+              <span className={`transition-colors duration-200 ${view === key ? "text-primary font-semibold" : ""}`}>{label}</span>
               {key === "reclamations" && stats.total > 0 && (
-                <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">
-                  {stats.total}
-                </span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">{stats.total}</span>
               )}
             </button>
           ))}
         </nav>
 
-        {/* Déconnexion */}
         <div className="px-4 py-4 border-t border-stroke dark:border-strokedark">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          >
-            <Icons.Logout />
-            Déconnexion
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <Icons.Logout /> Déconnexion
           </button>
         </div>
       </aside>
     </>
   );
 
-  // ── Header ─────────────────────────────────────────────────────────────────
   const Header = () => (
     <header className="sticky top-0 z-10 bg-white dark:bg-boxdark border-b border-stroke dark:border-strokedark px-4 lg:px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
-        >
+        <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5">
           <Icons.Menu />
         </button>
         <div>
@@ -261,9 +282,7 @@ const TechnicianDashboard = () => {
       <div className="flex items-center gap-3">
         <button className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5">
           <Icons.Bell />
-          {stats.urgente > 0 && (
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-          )}
+          {stats.urgente > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />}
         </button>
         <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center font-bold text-white text-sm">
           {user?.name?.charAt(0).toUpperCase()}
@@ -272,10 +291,8 @@ const TechnicianDashboard = () => {
     </header>
   );
 
-  // ── Vue Dashboard ──────────────────────────────────────────────────────────
   const ViewDashboard = () => (
     <div className="space-y-6">
-      {/* Salutation */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-blue-400 p-6 text-white shadow-md">
         <p className="text-sm opacity-80">Bonjour 👋</p>
         <h2 className="text-2xl font-bold mt-1">{user?.name}</h2>
@@ -296,13 +313,12 @@ const TechnicianDashboard = () => {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: "Total tâches",  value: stats.total,    color: "text-primary",      bg: "bg-primary/10",    icon: "📋" },
-          { label: "En cours",      value: stats.en_cours, color: "text-yellow-600",   bg: "bg-yellow-50 dark:bg-yellow-900/20", icon: "⏳" },
-          { label: "Résolues",      value: stats.resolue,  color: "text-green-600",    bg: "bg-green-50 dark:bg-green-900/20",  icon: "✅" },
-          { label: "Urgentes",      value: stats.urgente,  color: "text-red-600",      bg: "bg-red-50 dark:bg-red-900/20",      icon: "🔥" },
+          { label: "Total tâches", value: stats.total,    color: "text-primary",    bg: "bg-primary/10",                        icon: "📋" },
+          { label: "En cours",     value: stats.en_cours, color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-900/20",   icon: "⏳" },
+          { label: "Résolues",     value: stats.resolue,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-900/20",     icon: "✅" },
+          { label: "Urgentes",     value: stats.urgente,  color: "text-red-600",    bg: "bg-red-50 dark:bg-red-900/20",         icon: "🔥" },
         ].map((s) => (
           <div key={s.label} className={`rounded-xl ${s.bg} border border-stroke dark:border-strokedark p-5`}>
             <div className="flex items-center justify-between mb-2">
@@ -314,16 +330,14 @@ const TechnicianDashboard = () => {
         ))}
       </div>
 
-      {/* Tâches récentes */}
       <div className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark">
           <h3 className="font-semibold text-black dark:text-white">Tâches récentes</h3>
-          <button onClick={() => setView("reclamations")} className="text-xs text-primary hover:underline">
-            Voir tout →
-          </button>
+          <button onClick={() => setView("reclamations")} className="text-xs text-primary hover:underline">Voir tout →</button>
         </div>
         <div className="divide-y divide-stroke dark:divide-strokedark">
-          {tachesState.slice(0, 4).map((t) => (
+          {loading && <p className="px-6 py-8 text-center text-sm text-gray-500">Chargement...</p>}
+          {!loading && tachesState.slice(0, 4).map((t) => (
             <div key={t.id} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
               onClick={() => { setSelected(t); setView("reclamations"); }}>
               <div className={`h-2 w-2 rounded-full flex-shrink-0 ${prioriteBar[t.priorite]}`} />
@@ -336,19 +350,16 @@ const TechnicianDashboard = () => {
               </span>
             </div>
           ))}
-          {tachesState.length === 0 && (
+          {!loading && tachesState.length === 0 && (
             <p className="px-6 py-8 text-center text-sm text-gray-500">Aucune tâche assignée.</p>
           )}
         </div>
       </div>
 
-      {/* Agenda du jour */}
       <div className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark">
           <h3 className="font-semibold text-black dark:text-white">Agenda cette semaine</h3>
-          <button onClick={() => setView("agenda")} className="text-xs text-primary hover:underline">
-            Voir tout →
-          </button>
+          <button onClick={() => setView("agenda")} className="text-xs text-primary hover:underline">Voir tout →</button>
         </div>
         <div className="divide-y divide-stroke dark:divide-strokedark">
           {AGENDA.slice(0, 3).map((ev) => (
@@ -366,10 +377,8 @@ const TechnicianDashboard = () => {
     </div>
   );
 
-  // ── Vue Réclamations ───────────────────────────────────────────────────────
   const ViewReclamations = () => (
     <div className="space-y-5">
-      {/* Filtres */}
       <div className="flex flex-wrap gap-2">
         {(["toutes", "nouvelle", "en_cours", "resolue", "fermee"] as const).map((f) => (
           <button key={f} className="rounded-full border border-stroke dark:border-strokedark px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 capitalize transition-colors">
@@ -378,12 +387,16 @@ const TechnicianDashboard = () => {
         ))}
       </div>
 
-      {tachesState.length === 0 ? (
+      {loading && <p className="text-center py-12 text-gray-500">Chargement des réclamations...</p>}
+
+      {!loading && tachesState.length === 0 && (
         <div className="rounded-xl bg-white dark:bg-boxdark p-12 text-center border border-stroke dark:border-strokedark">
           <p className="text-4xl mb-3">📭</p>
           <p className="text-gray-500">Aucune réclamation assignée.</p>
         </div>
-      ) : (
+      )}
+
+      {!loading && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {tachesState.map((tache) => (
             <div key={tache.id} className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark overflow-hidden hover:shadow-md transition-shadow">
@@ -405,11 +418,13 @@ const TechnicianDashboard = () => {
                     {tache.priorite}
                   </span>
                 </div>
+                {tache.photoUrl && (
+                  <img src={`http://localhost:8087${tache.photoUrl}`} alt="photo"
+                    className="w-full h-28 object-cover rounded-lg mb-3 border border-gray-200" />
+                )}
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelected(tache)}
-                    className="flex-1 rounded-lg border border-stroke dark:border-strokedark py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                  >
+                  <button onClick={() => setSelected(tache)}
+                    className="flex-1 rounded-lg border border-stroke dark:border-strokedark py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     Voir détail
                   </button>
                   {tache.statut === "nouvelle" && (
@@ -433,7 +448,6 @@ const TechnicianDashboard = () => {
     </div>
   );
 
-  // ── Vue Agenda ─────────────────────────────────────────────────────────────
   const ViewAgenda = () => {
     const jours = [...new Set(AGENDA.map((e) => e.jour))];
     return (
@@ -452,12 +466,8 @@ const TechnicianDashboard = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-black dark:text-white">{ev.titre}</p>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
-                        <Icons.Clock /> {ev.heure}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
-                        <Icons.MapPin /> {ev.lieu}
-                      </span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500"><Icons.Clock /> {ev.heure}</span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500"><Icons.MapPin /> {ev.lieu}</span>
                     </div>
                   </div>
                   <div className={`h-3 w-3 rounded-full flex-shrink-0 ${ev.couleur}`} />
@@ -470,10 +480,8 @@ const TechnicianDashboard = () => {
     );
   };
 
-  // ── Vue Profil ─────────────────────────────────────────────────────────────
   const ViewProfile = () => (
     <div className="space-y-6 max-w-2xl">
-      {/* Carte profil */}
       <div className="rounded-2xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark overflow-hidden">
         <div className="h-24 bg-gradient-to-r from-primary to-blue-400" />
         <div className="px-6 pb-6">
@@ -486,7 +494,6 @@ const TechnicianDashboard = () => {
               <p className="text-sm text-gray-500">Technicien de laboratoire</p>
             </div>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: "Email",         value: user?.email ?? "—" },
@@ -505,7 +512,6 @@ const TechnicianDashboard = () => {
         </div>
       </div>
 
-      {/* Statistiques personnelles */}
       <div className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark p-6">
         <h3 className="font-semibold text-black dark:text-white mb-4">Mes statistiques</h3>
         <div className="grid grid-cols-3 gap-4">
@@ -520,63 +526,55 @@ const TechnicianDashboard = () => {
             </div>
           ))}
         </div>
-        {/* Barre de progression */}
         <div className="mt-4">
           <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>Taux de résolution</span>
             <span>{stats.total > 0 ? Math.round((stats.resolue / stats.total) * 100) : 0}%</span>
           </div>
           <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-white/10">
-            <div
-              className="h-2 rounded-full bg-gradient-to-r from-primary to-green-400 transition-all"
-              style={{ width: `${stats.total > 0 ? (stats.resolue / stats.total) * 100 : 0}%` }}
-            />
+            <div className="h-2 rounded-full bg-gradient-to-r from-primary to-green-400 transition-all"
+              style={{ width: `${stats.total > 0 ? (stats.resolue / stats.total) * 100 : 0}%` }} />
           </div>
         </div>
       </div>
 
-      {/* Bouton déconnexion */}
-      <button
-        onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 dark:border-red-900/50 py-3 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-      >
-        <Icons.Logout />
-        Se déconnecter
+      <button onClick={handleLogout}
+        className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 dark:border-red-900/50 py-3 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+        <Icons.Logout /> Se déconnecter
       </button>
     </div>
   );
 
-  // ── Modal Détail Réclamation ───────────────────────────────────────────────
   const Modal = () => {
     if (!selected) return null;
     return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-        onClick={() => setSelected(null)}
-      >
-        <div
-          className="w-full max-w-lg rounded-2xl bg-white dark:bg-boxdark shadow-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* En-tête modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setSelected(null)}>
+        <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-boxdark shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
           <div className={`h-1.5 w-full ${prioriteBar[selected.priorite]}`} />
           <div className="px-6 py-5 border-b border-stroke dark:border-strokedark flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-xs text-gray-400 mb-1">{selected.numero}</p>
               <h3 className="text-lg font-semibold text-black dark:text-white">{selected.titre}</h3>
             </div>
-            <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 mt-1">
-              <Icons.Close />
-            </button>
+            <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 mt-1"><Icons.Close /></button>
           </div>
 
-          {/* Corps */}
           <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+            {selected.photoUrl && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Photo du problème</p>
+                <img src={`http://localhost:8087${selected.photoUrl}`} alt="photo"
+                  className="w-full h-48 object-cover rounded-xl border border-gray-200" />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Client",    value: selected.client },
-                { label: "Date",      value: selected.dateCreation },
-                { label: "Catégorie", value: selected.categorie },
+                { label: "Client",      value: selected.client },
+                { label: "Date",        value: selected.dateCreation },
+                { label: "Catégorie",   value: selected.categorie },
+                { label: "Machine",     value: selected.machine ?? "—" },
+                { label: "Laboratoire", value: selected.labName ?? "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-xl bg-gray-50 dark:bg-white/5 px-4 py-3">
                   <p className="text-xs text-gray-500 mb-0.5">{label}</p>
@@ -604,40 +602,32 @@ const TechnicianDashboard = () => {
               </p>
             </div>
 
-            <div>
-              <p className="text-xs text-gray-500 mb-2">Note d'intervention</p>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Décrivez votre intervention..."
-                rows={3}
-                className="w-full rounded-xl border border-stroke dark:border-strokedark bg-transparent px-4 py-3 text-sm text-black dark:text-white outline-none focus:border-primary resize-none"
-              />
-            </div>
+            {selected.statut === "en_cours" && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Note d'intervention</p>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)}
+                  placeholder="Décrivez votre intervention..."
+                  rows={3}
+                  className="w-full rounded-xl border border-stroke dark:border-strokedark bg-transparent px-4 py-3 text-sm text-black dark:text-white outline-none focus:border-primary resize-none" />
+              </div>
+            )}
           </div>
 
-          {/* Actions */}
           <div className="px-6 py-4 border-t border-stroke dark:border-strokedark flex gap-2">
             {selected.statut === "nouvelle" && (
-              <button
-                onClick={() => updateStatut(selected.id, "en_cours")}
-                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-opacity-90 transition"
-              >
+              <button onClick={() => updateStatut(selected.id, "en_cours")}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-opacity-90 transition">
                 Démarrer l'intervention
               </button>
             )}
             {selected.statut === "en_cours" && (
-              <button
-                onClick={() => updateStatut(selected.id, "resolue")}
-                className="flex-1 rounded-xl bg-green-500 py-2.5 text-sm font-medium text-white hover:bg-green-600 transition flex items-center justify-center gap-2"
-              >
+              <button onClick={() => updateStatut(selected.id, "resolue")}
+                className="flex-1 rounded-xl bg-green-500 py-2.5 text-sm font-medium text-white hover:bg-green-600 transition flex items-center justify-center gap-2">
                 <Icons.Check /> Marquer comme résolu
               </button>
             )}
-            <button
-              onClick={() => setSelected(null)}
-              className="rounded-xl border border-stroke dark:border-strokedark px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition"
-            >
+            <button onClick={() => setSelected(null)}
+              className="rounded-xl border border-stroke dark:border-strokedark px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition">
               Fermer
             </button>
           </div>
@@ -646,11 +636,9 @@ const TechnicianDashboard = () => {
     );
   };
 
-  // ── Rendu principal ────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
       <Sidebar />
-
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
@@ -660,7 +648,6 @@ const TechnicianDashboard = () => {
           {view === "profile"      && <ViewProfile />}
         </main>
       </div>
-
       <Modal />
     </div>
   );

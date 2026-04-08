@@ -17,66 +17,65 @@ export default function SignInForm() {
 
   const { login } = useAuth();
   const navigate  = useNavigate();
+
   const handleSubmit = async (e: FormEvent) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  await new Promise((r) => setTimeout(r, 400));
+    console.log("📤 Soumission login :", { email, password: "***" });
 
-  console.log("📧 Email saisi:", email);
-  console.log("🔑 Password saisi:", password);
+    const result = await login(email, password);
+    console.log("🏁 Résultat login :", result);
 
-  const result = login(email, password);
+    setLoading(false);
 
-  console.log("✅ Résultat login:", result);
+    if (!result.success) {
+      setError(result.message || "Email ou mot de passe incorrect.");
+      console.log("❌ Échec, message affiché :", result.message);
+      return;
+    }
 
-  setLoading(false);
+    // Vérifier ce qui a été stocké
+    const saved = localStorage.getItem("reclamation_user");
+    console.log("📦 reclamation_user :", saved);
+    const user = saved ? JSON.parse(saved) : null;
+    console.log("👤 Utilisateur parsé :", user);
+    console.log("🎭 Rôle :", user?.role);
 
-  if (!result.success) {
-    setError(result.message || "Email ou mot de passe incorrect.");
-    return;
-  }
-
-  const saved = localStorage.getItem("reclamation_user");
-  console.log("💾 localStorage reclamation_user:", saved);
-
-  const user = saved ? JSON.parse(saved) : null;
-  console.log("👤 User role:", user?.role);
-
-  if (user?.role === "admin")           navigate("/");
-  else if (user?.role === "technicien") navigate("/technicien/dashboard");
-  else                                  navigate("/signin");
-};
+    if (user?.role === "ADMIN") {
+      console.log("🚀 Redirection vers /");
+      navigate("/");
+    } else if (user?.role === "TECHNICIEN") {
+      console.log("🚀 Redirection vers /technicien/dashboard");
+      navigate("/technicien/dashboard");
+    } else {
+      console.warn("⚠️ Rôle non reconnu ou utilisateur null, redirection /signin");
+      navigate("/signin");
+    }
+  };
 
   return (
     <div className="flex flex-col flex-1 items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-6">
       <div className="w-full max-w-md">
-
-        {/* Logo / En-tête */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 mb-4">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
               <path d="M9 3H5C3.9 3 3 3.9 3 5V9C3 10.1 3.9 11 5 11H9C10.1 11 11 10.1 11 9V5C11 3.9 10.1 3 9 3Z" fill="white"/>
               <path d="M19 3H15C13.9 3 13 3.9 13 5V9C13 10.1 13.9 11 15 11H19C20.1 11 21 10.1 21 9V5C21 3.9 20.1 3 19 3Z" fill="white" opacity="0.7"/>
-              <path d="M9 13H5C3.9 13 3 3.9 3 15V19C3 20.1 3.9 21 5 21H9C10.1 21 11 20.1 11 19V15C11 13.9 10.1 13 9 13Z" fill="white" opacity="0.7"/>
+              <path d="M9 13H5C3.9 13 3 13.9 3 15V19C3 20.1 3.9 21 5 21H9C10.1 21 11 20.1 11 19V15C11 13.9 10.1 13 9 13Z" fill="white" opacity="0.7"/>
               <path d="M19 13H15C13.9 13 13 13.9 13 15V19C13 20.1 13.9 21 15 21H19C20.1 21 21 20.1 21 19V15C21 13.9 20.1 13 19 13Z" fill="white" opacity="0.4"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            LabHub
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">LabHub</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             École Nationale des Ingénieurs de Carthage
           </p>
         </div>
 
-        {/* Card formulaire */}
         <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Connexion
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Connexion</h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Accédez à votre espace de gestion
             </p>
@@ -84,11 +83,8 @@ export default function SignInForm() {
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">
-
               <div>
-                <Label>
-                  Email <span className="text-error-500">*</span>
-                </Label>
+                <Label>Email <span className="text-error-500">*</span></Label>
                 <Input
                   type="email"
                   placeholder="votre@reclamation.tn"
@@ -98,9 +94,7 @@ export default function SignInForm() {
               </div>
 
               <div>
-                <Label>
-                  Mot de passe <span className="text-error-500">*</span>
-                </Label>
+                <Label>Mot de passe <span className="text-error-500">*</span></Label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
@@ -123,14 +117,9 @@ export default function SignInForm() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Checkbox checked={isChecked} onChange={setIsChecked} />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Rester connecté
-                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Rester connecté</span>
                 </div>
-                <Link
-                  to="/reset-password"
-                  className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                >
+                <Link to="/reset-password" className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400">
                   Mot de passe oublié ?
                 </Link>
               </div>
@@ -147,7 +136,6 @@ export default function SignInForm() {
               <Button className="w-full" size="sm" disabled={loading}>
                 {loading ? "Connexion en cours..." : "Se connecter"}
               </Button>
-
             </div>
           </form>
         </div>
@@ -158,7 +146,6 @@ export default function SignInForm() {
             Créer un compte
           </Link>
         </p>
-
       </div>
     </div>
   );
