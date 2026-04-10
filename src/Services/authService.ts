@@ -4,13 +4,22 @@ import { api, setToken, removeToken } from "./apiClient";
 export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const data = await api.post<AuthResponse>("/auth/login", credentials);
+
+    console.log("📥 Réponse login:", data);
+
     setToken(data.token);
+
+    localStorage.setItem("reclamation_user", JSON.stringify(data.user));
+
     return data;
   },
 
   async register(payload: RegisterRequest): Promise<AuthResponse> {
     const data = await api.post<AuthResponse>("/auth/register", payload);
+
     setToken(data.token);
+    localStorage.setItem("reclamation_user", JSON.stringify(data.user));
+
     return data;
   },
 
@@ -19,6 +28,7 @@ export const authService = {
       await api.post<void>("/auth/logout", {});
     } finally {
       removeToken();
+      localStorage.removeItem("reclamation_user");
     }
   },
 };

@@ -1,9 +1,9 @@
 const BASE_URL = import.meta.env.VITE_API_URL;
 
 
-export const getToken = (): string | null => localStorage.getItem("token");
-export const setToken = (token: string) => localStorage.setItem("token", token);
-export const removeToken = () => localStorage.removeItem("token");
+export const getToken = (): string | null => localStorage.getItem("reclamation_token");
+export const setToken = (token: string) => localStorage.setItem("reclamation_token", token);
+export const removeToken = () => localStorage.removeItem("reclamation_token");
 
 
 export class ApiError extends Error {
@@ -43,11 +43,25 @@ async function request<T>(
     throw new ApiError(response.status, message);
   }
 
-  if (response.status === 204) return undefined as unknown as T;
+  //  SAFE: DELETE / NO CONTENT
+  if (response.status === 204) {
+    return undefined as unknown as T;
+  }
 
-  return response.json() as Promise<T>;
+  //  SAFE: check if body exists
+  const text = await response.text();
+
+  if (!text) {
+    return undefined as unknown as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (e) {
+    // fallback si backend renvoie texte brut
+    return text as unknown as T;
+  }
 }
-
 
 export const api = {
   get: <T>(endpoint: string) =>

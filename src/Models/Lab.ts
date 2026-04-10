@@ -11,6 +11,4 @@ export interface Lab {
   schedule?: string;
   available: boolean;
   machines: Machine[];
-  createdAt: string;
-  updatedAt: string;
 }
