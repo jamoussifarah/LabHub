@@ -22,4 +22,7 @@ export const complaintService = {
 
   delete: (id: string): Promise<void> =>
     api.delete(`/complaints/${id}`),
+  // Ajoutez cette méthode à l'objet complaintService existant
+  assignTechnician: (complaintId: string, technicianId: string): Promise<Complaint> =>
+  api.put(`/complaints/${complaintId}/assign`, { technicianId }),
 };

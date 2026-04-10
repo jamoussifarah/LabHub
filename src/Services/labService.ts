@@ -1,5 +1,5 @@
+import { Lab } from "../Models/Lab";
 import { api } from "./apiClient";
-import type { Lab } from "../types/models";
 
 export const labService = {
   getAll: (): Promise<Lab[]> =>

@@ -35,24 +35,27 @@ export default function SignInForm() {
       console.log("❌ Échec, message affiché :", result.message);
       return;
     }
+const user = JSON.parse(localStorage.getItem("reclamation_user") || "null");
 
-    // Vérifier ce qui a été stocké
-    const saved = localStorage.getItem("reclamation_user");
-    console.log("📦 reclamation_user :", saved);
-    const user = saved ? JSON.parse(saved) : null;
-    console.log("👤 Utilisateur parsé :", user);
-    console.log("🎭 Rôle :", user?.role);
+console.log("👤 User:", user);
+console.log("🔐 Token:", localStorage.getItem("reclamation_token"));
 
-    if (user?.role === "ADMIN") {
-      console.log("🚀 Redirection vers /");
-      navigate("/");
-    } else if (user?.role === "TECHNICIEN") {
-      console.log("🚀 Redirection vers /technicien/dashboard");
-      navigate("/technicien/dashboard");
-    } else {
-      console.warn("⚠️ Rôle non reconnu ou utilisateur null, redirection /signin");
-      navigate("/signin");
-    }
+if (!user) {
+  console.warn("⚠️ Aucun utilisateur trouvé");
+  navigate("/signin");
+  return;
+}
+
+if (user.role === "ADMIN") {
+  console.log("🚀 Redirection ADMIN");
+  navigate("/");
+} else if (user.role === "TECHNICIEN") {
+  console.log("🚀 Redirection TECHNICIEN");
+  navigate("/technicien/dashboard");
+} else {
+  console.warn("⚠️ Rôle inconnu");
+  navigate("/signin");
+}
   };
 
   return (

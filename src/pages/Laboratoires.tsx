@@ -1,259 +1,348 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import { labService } from "../Services/labService";
+import { Lab } from "../Models/Lab";
 
-type Lab = {
-  id: string;
-  nom: string;
-  capacite: number;
-  statut: string;
-  responsable: string;
+
+type CreateLabForm = {
+  name: string;
+  description?: string;
+  location?: string;
+  capacity: number;
 };
 
 export default function Laboratoires() {
+  const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
+  const [openModal, setOpenModal] = useState(false);
 
-const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
-const [openModal, setOpenModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Tous");
 
-const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState("Tous");
+  const [labs, setLabs] = useState<Lab[]>([]);
 
-const [labs, setLabs] = useState<Lab[]>([
-{
-id: "LAB-01",
-nom: "Laboratoire Informatique 1",
-capacite: 25,
-statut: "Disponible",
-responsable: "Dr Ahmed",
-},
-{
-id: "LAB-02",
-nom: "Laboratoire Électronique",
-capacite: 20,
-statut: "Occupé",
-responsable: "Dr Sami",
-},
-{
-id: "LAB-03",
-nom: "Laboratoire Réseaux",
-capacite: 30,
-statut: "Maintenance",
-responsable: "Dr Lina",
-},
-]);
+  /* FORM */
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    location: "",
+    capacity: 0,
+    availableSpots: 0,
+    available: true,
+  });
 
-/* FILTRAGE */
+  useEffect(() => {
+    loadLabs();
+  }, []);
 
-const filteredLabs = labs.filter((lab) => {
-return (
-(statusFilter === "Tous" || lab.statut === statusFilter) &&
-(
-lab.nom.toLowerCase().includes(search.toLowerCase()) ||
-lab.id.toLowerCase().includes(search.toLowerCase()) ||
-lab.responsable.toLowerCase().includes(search.toLowerCase())
-)
-);
-});
+  const loadLabs = async () => {
+    try {
+      const data = await labService.getAll();
+      setLabs(data);
+    } catch (error) {
+      console.error("Erreur chargement labs", error);
+    }
+  };
 
-/* ACTIONS */
+  /* HANDLE CHANGE */
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value, type } = e.target;
 
-const addLab = () => {
+    setFormData({
+      ...formData,
+      [name]: type === "number" ? Number(value) : value,
+    });
+  };
 
-const newLab: Lab = {
-id: "LAB-" + Math.floor(Math.random() * 1000),
-nom: "Nouveau laboratoire",
-capacite: 20,
-statut: "Disponible",
-responsable: "Non assigné",
+  /* OPEN ADD */
+  const openAddModal = () => {
+    setSelectedLab(null);
+
+    setFormData({
+      name: "",
+      description: "",
+      location: "",
+      capacity: 0,
+      availableSpots: 0,
+      available: true,
+    });
+
+    setOpenModal(true);
+  };
+
+  /* OPEN EDIT */
+  const openEditModal = (lab: Lab) => {
+    setSelectedLab(lab);
+
+    setFormData({
+      name: lab.name,
+      description: lab.description || "",
+      location: lab.location || "",
+      capacity: lab.capacity,
+      availableSpots: lab.availableSpots,
+      available: lab.available,
+    });
+
+    setOpenModal(true);
+  };
+
+  /* ===================== */
+  /* ADD LAB (FIX IMPORTANT) */
+  /* ===================== */
+  const addLab = async () => {
+  try {
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      location: formData.location,
+      capacity: formData.capacity,
+      availableSpots: formData.capacity,
+      available: true,
+    };
+
+    await labService.create(payload as any);
+
+    setOpenModal(false);
+    await loadLabs();
+  } catch (error) {
+    console.error("Erreur ajout lab", error);
+  }
 };
+  /* ===================== */
+  /* EDIT LAB */
+  /* ===================== */
+  const editLab = async () => {
+    if (!selectedLab) return;
 
-setLabs([...labs, newLab]);
-};
+    try {
+      await labService.update(selectedLab.id, {
+        name: formData.name,
+        description: formData.description,
+        location: formData.location,
+        capacity: formData.capacity,
+        availableSpots: formData.availableSpots,
+        available: formData.available,
+      });
 
-const deleteLab = (id: string) => {
-setLabs(labs.filter((l) => l.id !== id));
-};
+      setOpenModal(false);
+      await loadLabs();
+    } catch (error) {
+      console.error("Erreur update lab", error);
+    }
+  };
 
-const editLab = (id: string) => {
-setLabs(
-labs.map((l) =>
-l.id === id ? { ...l, statut: "Maintenance" } : l
-)
-);
-};
+  /* DELETE */
+  const deleteLab = async (id: string) => {
+    try {
+      await labService.delete(id);
+      setLabs(labs.filter((l) => l.id !== id));
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-/* COULEURS STATUT */
+  /* FILTER */
+  const filteredLabs = labs.filter((lab) => {
+    return (
+      (statusFilter === "Tous" ||
+        (statusFilter === "Disponible"
+          ? lab.available
+          : !lab.available)) &&
+      (lab.name.toLowerCase().includes(search.toLowerCase()) ||
+        lab.id.toLowerCase().includes(search.toLowerCase()))
+    );
+  });
 
-const getStatusColor = (statut: string) => {
+  const getStatusColor = (available: boolean) =>
+    available
+      ? "bg-green-100 text-green-700"
+      : "bg-red-100 text-red-700";
 
-if (statut === "Disponible")
-return "bg-green-100 text-green-700";
+  const getStatusLabel = (available: boolean) =>
+    available ? "Disponible" : "Occupé";
 
-if (statut === "Occupé")
-return "bg-red-100 text-red-700";
+  return (
+    <div>
+      <PageMeta title="Gestion des laboratoires" description="" />
+      <PageBreadcrumb pageTitle="Laboratoires" />
 
-return "bg-yellow-100 text-yellow-700";
+      <div className="p-6 bg-white rounded-xl">
 
-};
+        {/* HEADER */}
+        <div className="flex justify-between mb-6">
+          <h1 className="text-2xl font-bold">
+            Gestion des laboratoires
+          </h1>
 
-return (
+          <button
+            onClick={openAddModal}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            + Ajouter
+          </button>
+        </div>
 
-<div>
+        {/* FILTER */}
+        <div className="flex gap-4 mb-6">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher..."
+            className="border p-2 rounded w-1/2"
+          />
 
-<PageMeta title="Gestion des laboratoires" description="Dashboard laboratoires" />
-<PageBreadcrumb pageTitle="Gestion des laboratoires" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border p-2 rounded"
+          >
+            <option value="Tous">Tous</option>
+            <option value="Disponible">Disponible</option>
+            <option value="Occupé">Occupé</option>
+          </select>
+        </div>
 
-<div className="p-6 bg-white rounded-xl">
+        {/* LIST */}
+        <div className="grid grid-cols-3 gap-6">
+          {filteredLabs.map((lab) => (
+            <div
+              key={lab.id}
+              className="border rounded-lg p-4 shadow-sm"
+            >
+              <span
+                className={`text-sm px-2 py-1 rounded ${getStatusColor(
+                  lab.available
+                )}`}
+              >
+                {getStatusLabel(lab.available)}
+              </span>
 
-{/* HEADER */}
+              <p className="mt-2 font-medium">{lab.name}</p>
 
-<div className="flex justify-between items-center mb-6">
+              <div className="text-sm text-gray-500 mt-3">
+                <p>{lab.description}</p>
+                <p>Capacité : {lab.capacity}</p>
+                <p>Places : {lab.availableSpots}</p>
+              </div>
 
-<h1 className="text-2xl font-bold">
-Gestion des laboratoires
-</h1>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => openEditModal(lab)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  Modifier
+                </button>
 
-<button
-onClick={addLab}
-className="bg-blue-600 text-white px-4 py-2 rounded-lg"
->
-+ Ajouter un laboratoire
-</button>
+                <button
+                  onClick={() => deleteLab(lab.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
 
-</div>
+        {/* MODAL */}
+        {openModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+            <div className="bg-white w-[450px] rounded-xl shadow-lg p-6 relative">
 
-{/* FILTRES */}
+              <button
+                onClick={() => setOpenModal(false)}
+                className="absolute top-3 right-3"
+              >
+                ✖
+              </button>
 
-<div className="flex gap-4 mb-6">
+              <h2 className="text-lg font-semibold mb-4">
+                {selectedLab
+                  ? "Modifier laboratoire"
+                  : "Ajouter laboratoire"}
+              </h2>
 
-<input
-type="text"
-placeholder="Rechercher laboratoire..."
-value={search}
-onChange={(e) => setSearch(e.target.value)}
-className="border p-2 rounded w-1/2"
-/>
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Nom"
+                className="border p-2 w-full mb-3"
+              />
 
-<select
-value={statusFilter}
-onChange={(e) => setStatusFilter(e.target.value)}
-className="border p-2 rounded"
->
-<option value="Tous">Tous</option>
-<option value="Disponible">Disponible</option>
-<option value="Occupé">Occupé</option>
-<option value="Maintenance">Maintenance</option>
-</select>
+              <input
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Description"
+                className="border p-2 w-full mb-3"
+              />
 
-</div>
+              <input
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="Location"
+                className="border p-2 w-full mb-3"
+              />
 
-<p className="text-sm text-gray-500 mb-4">
-{filteredLabs.length} laboratoires trouvés
-</p>
+              <input
+                name="capacity"
+                type="number"
+                value={formData.capacity}
+                onChange={handleChange}
+                placeholder="Capacité"
+                className="border p-2 w-full mb-3"
+              />
 
-{/* CARTES */}
+              {/* EDIT ONLY */}
+              {selectedLab && (
+                <>
+                  <input
+                    name="availableSpots"
+                    type="number"
+                    value={formData.availableSpots}
+                    onChange={handleChange}
+                    placeholder="Places disponibles"
+                    className="border p-2 w-full mb-3"
+                  />
 
-<div className="grid grid-cols-3 gap-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span>Disponible</span>
 
-{filteredLabs.map((lab) => (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          available: !formData.available,
+                        })
+                      }
+                      className={`px-3 py-1 rounded ${
+                        formData.available
+                          ? "bg-green-500"
+                          : "bg-red-500"
+                      } text-white`}
+                    >
+                      {formData.available ? "✔ Oui" : "❌ Non"}
+                    </button>
+                  </div>
+                </>
+              )}
 
-<div
-key={lab.id}
-onClick={()=>{
-setSelectedLab(lab)
-setOpenModal(true)
-}}
-className="border rounded-lg p-4 shadow-sm cursor-pointer"
->
+              <button
+                onClick={selectedLab ? editLab : addLab}
+                className="bg-green-600 text-white px-4 py-2 rounded w-full"
+              >
+                {selectedLab ? "Modifier" : "Ajouter"}
+              </button>
+            </div>
+          </div>
+        )}
 
-<div className="flex justify-between">
-
-<h3 className="text-blue-600 font-semibold">
-{lab.id}
-</h3>
-
-<span
-className={`text-sm px-2 py-1 rounded ${getStatusColor(lab.statut)}`}
->
-{lab.statut}
-</span>
-
-</div>
-
-<p className="mt-2 font-medium">
-{lab.nom}
-</p>
-
-<div className="text-sm text-gray-500 mt-3">
-<p>Capacité : {lab.capacite}</p>
-<p>Responsable : {lab.responsable}</p>
-</div>
-
-<div className="flex gap-2 mt-4">
-
-<button
-onClick={(e)=>{
-e.stopPropagation()
-editLab(lab.id)
-}}
-className="bg-blue-500 text-white px-3 py-1 rounded"
->
-Modifier
-</button>
-
-<button
-onClick={(e)=>{
-e.stopPropagation()
-deleteLab(lab.id)
-}}
-className="bg-red-500 text-white px-3 py-1 rounded"
->
-Supprimer
-</button>
-
-</div>
-
-</div>
-
-))}
-
-</div>
-
-{/* POPUP DETAILS */}
-
-{openModal && selectedLab && (
-
-<div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-
-<div className="bg-white w-[450px] rounded-xl shadow-lg p-6 relative">
-
-<button
-onClick={() => setOpenModal(false)}
-className="absolute top-3 right-3 text-gray-500"
->
-✖
-</button>
-
-<h2 className="text-lg font-semibold mb-4">
-Détails du laboratoire
-</h2>
-
-<p className="text-blue-600 font-medium mb-4">
-{selectedLab.id}
-</p>
-
-<p><b>Nom :</b> {selectedLab.nom}</p>
-<p><b>Capacité :</b> {selectedLab.capacite}</p>
-<p><b>Statut :</b> {selectedLab.statut}</p>
-<p><b>Responsable :</b> {selectedLab.responsable}</p>
-
-</div>
-
-</div>
-
-)}
-
-</div>
-</div>
-);
+      </div>
+    </div>
+  );
 }

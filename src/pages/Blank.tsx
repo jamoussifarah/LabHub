@@ -1,112 +1,173 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import { labService } from "../Services/labService";
 
-export default function Machines() {
+type Lab = {
+  id: string;
+  name: string;
+  description?: string;
+  location?: string;
+  capacity: number;
+  available: boolean;
+  availableSpots: number;
+  machines: any[];
+};
 
-const [selectedMachine, setSelectedMachine] = useState<any>(null);
-const [openModal, setOpenModal] = useState<boolean>(false);
+export default function Laboratoires() {
 
-  const [machines, setMachines] = useState([
-    {
-      id: "PC-A101",
-      nom: "Ordinateur Dell Optiplex",
-      type: "PC",
-      labo: "Labo Info 1",
-      entretien: "2026-01-15",
-      status: "En panne",
-    },
-    {
-      id: "OSC-B205",
-      nom: "Oscilloscope Tektronix",
-      type: "Oscilloscope",
-      labo: "Labo Électronique",
-      entretien: "2026-02-10",
-      status: "Opérationnel",
-    },
-    {
-      id: "IMP3D-A103",
-      nom: "Imprimante 3D Prusa",
-      type: "Imprimante 3D",
-      labo: "Labo Info 2",
-      entretien: "2026-02-20",
-      status: "Maintenance",
-    },
-  ]);
+  const [labs, setLabs] = useState<Lab[]>([]);
+  const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
+
+  const [openModal, setOpenModal] = useState(false);
+  const [openDetails, setOpenDetails] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tous");
-  const [laboFilter, setLaboFilter] = useState("Tous");
 
-  const filteredMachines = machines.filter((m) => {
+  // 🔥 FORM
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    location: "",
+    capacity: 0,
+  });
+
+  /* ===================== */
+  /* LOAD */
+  /* ===================== */
+
+  useEffect(() => {
+    loadLabs();
+  }, []);
+
+  const loadLabs = async () => {
+    try {
+      const data = await labService.getAll();
+      setLabs(data);
+    } catch (error) {
+      console.error("Erreur chargement labs", error);
+    }
+  };
+
+  /* ===================== */
+  /* FILTER */
+  /* ===================== */
+
+  const filteredLabs = labs.filter((lab) => {
     return (
-      (statusFilter === "Tous" || m.status === statusFilter) &&
-      (laboFilter === "Tous" || m.labo === laboFilter) &&
-      (m.nom.toLowerCase().includes(search.toLowerCase()) ||
-        m.id.toLowerCase().includes(search.toLowerCase()))
+      (statusFilter === "Tous" ||
+        (statusFilter === "Disponible"
+          ? lab.available
+          : !lab.available)) &&
+      (
+        lab.name.toLowerCase().includes(search.toLowerCase()) ||
+        lab.id.toLowerCase().includes(search.toLowerCase())
+      )
     );
   });
 
-const deleteMachine = (id: string) => {
-  setMachines(machines.filter((m) => m.id !== id));
-};
+  /* ===================== */
+  /* FORM HANDLER */
+  /* ===================== */
 
-const addMachine = () => {
-  const newMachine = {
-    id: "PC-" + Math.floor(Math.random() * 1000),
-    nom: "Nouvelle machine",
-    type: "PC",
-    labo: "Labo Info 1",
-    entretien: "2026-03-20",
-    status: "Opérationnel",
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFormData({
+      ...formData,
+      [e.target.name]:
+        e.target.name === "capacity"
+          ? Number(e.target.value)
+          : e.target.value,
+    });
   };
 
-  setMachines([...machines, newMachine]);
-};
+  /* ===================== */
+  /* OPEN MODAL */
+  /* ===================== */
 
-const editMachine = (id: string) => {
-  setMachines(
-    machines.map((m) =>
-      m.id === id ? { ...m, status: "Maintenance" } : m
-    )
-  );
-};
+  const openAddModal = () => {
+    setFormData({
+      name: "",
+      description: "",
+      location: "",
+      capacity: 0,
+    });
+
+    setOpenModal(true);
+  };
+
+  /* ===================== */
+  /* ADD LAB */
+  /* ===================== */
+
+  const addLab = async () => {
+    try {
+      const newLab = {
+        name: formData.name,
+        description: formData.description,
+        location: formData.location,
+        capacity: formData.capacity,
+        available: true,
+        availableSpots: formData.capacity,
+        machines: [],
+      };
+
+      await labService.create(newLab);
+      await loadLabs();
+
+      setOpenModal(false);
+
+    } catch (error) {
+      console.error("Erreur ajout lab", error);
+    }
+  };
+
+  /* ===================== */
+  /* DELETE */
+  /* ===================== */
+
+  const deleteLab = (id: string) => {
+    setLabs(labs.filter((l) => l.id !== id));
+  };
+
+  /* ===================== */
+  /* STATUS UI */
+  /* ===================== */
+
+  const getStatusColor = (available: boolean) =>
+    available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700";
+
+  const getStatusLabel = (available: boolean) =>
+    available ? "Disponible" : "Occupé";
 
   return (
     <div>
-      <PageMeta title="Gestion des machines" description="Dashboard machines" />
-      <PageBreadcrumb pageTitle="Gestion des machines" />
+
+      <PageMeta
+        title="Gestion des laboratoires"
+        description="Dashboard laboratoires"
+      />
+
+      <PageBreadcrumb pageTitle="Gestion des laboratoires" />
 
       <div className="p-6 bg-white rounded-xl">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Gestion des machines</h1>
+
+          <h1 className="text-2xl font-bold">
+            Gestion des laboratoires
+          </h1>
 
           <button
-  onClick={addMachine}
-  className="bg-blue-600 text-white px-4 py-2 rounded-lg"
->
-  + Ajouter une machine
-</button>
-        </div>
+            onClick={openAddModal}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            + Ajouter un laboratoire
+          </button>
 
-        {/* STATISTIQUES */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="p-4 bg-gray-100 rounded-lg">
-            <p>Opérationnelles</p>
-            <h2 className="text-xl font-bold">5</h2>
-          </div>
-
-          <div className="p-4 bg-gray-100 rounded-lg">
-            <p>En maintenance</p>
-            <h2 className="text-xl font-bold">2</h2>
-          </div>
-
-          <div className="p-4 bg-gray-100 rounded-lg">
-            <p>En panne</p>
-            <h2 className="text-xl font-bold">1</h2>
-          </div>
         </div>
 
         {/* FILTRES */}
@@ -114,120 +175,186 @@ const editMachine = (id: string) => {
 
           <input
             type="text"
-            placeholder="Rechercher par ID, nom ou type..."
-            className="border p-2 rounded w-1/2"
+            placeholder="Rechercher laboratoire..."
+            value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="border p-2 rounded w-1/2"
           />
 
           <select
-            className="border p-2 rounded"
+            value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option>Tous</option>
-            <option>Opérationnel</option>
-            <option>Maintenance</option>
-            <option>En panne</option>
-          </select>
-
-          <select
             className="border p-2 rounded"
-            onChange={(e) => setLaboFilter(e.target.value)}
           >
-            <option>Tous</option>
-            <option>Labo Info 1</option>
-            <option>Labo Info 2</option>
-            <option>Labo Électronique</option>
+            <option value="Tous">Tous</option>
+            <option value="Disponible">Disponible</option>
+            <option value="Occupé">Occupé</option>
           </select>
 
         </div>
 
-        {/* CARTES MACHINES */}
+        <p className="text-sm text-gray-500 mb-4">
+          {filteredLabs.length} laboratoires trouvés
+        </p>
+
+        {/* CARDS */}
         <div className="grid grid-cols-3 gap-6">
-          {filteredMachines.map((machine) => (
+
+          {filteredLabs.map((lab) => (
+
             <div
-              key={machine.id}
+              key={lab.id}
               onClick={() => {
-        setSelectedMachine(machine);
-        setOpenModal(true);
-      }}
-              className="border rounded-lg p-4 shadow-sm"
+                setSelectedLab(lab);
+                setOpenDetails(true);
+              }}
+              className="border rounded-lg p-4 shadow-sm cursor-pointer"
             >
-              <div className="flex justify-between">
-                <h3 className="text-blue-600 font-semibold">
-                  {machine.id}
-                </h3>
 
-                <span className="text-sm bg-gray-200 px-2 py-1 rounded">
-                  {machine.status}
-                </span>
-              </div>
+              <span className={`text-sm px-2 py-1 rounded ${getStatusColor(lab.available)}`}>
+                {getStatusLabel(lab.available)}
+              </span>
 
-              <p className="mt-2">{machine.nom}</p>
+              <p className="mt-2 font-medium">{lab.name}</p>
 
               <div className="text-sm text-gray-500 mt-3">
-                <p>Type : {machine.type}</p>
-                <p>Laboratoire : {machine.labo}</p>
-                <p>Dernier entretien : {machine.entretien}</p>
+                <p>Capacité : {lab.capacity}</p>
+                <p>Places dispo : {lab.availableSpots}</p>
+                <p>Machines : {lab.machines?.length ?? 0}</p>
               </div>
 
               <div className="flex gap-2 mt-4">
-               <button
-  onClick={(e) => {
-    e.stopPropagation();
-    editMachine(machine.id);
-  }}
-  className="bg-blue-500 text-white px-3 py-1 rounded"
->
-  Modifier
-</button>
 
                 <button
-  onClick={(e) => {
-    e.stopPropagation();
-    deleteMachine(machine.id);
-  }}
-  className="bg-red-500 text-white px-3 py-1 rounded"
->
-  Supprimer
-</button>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  Modifier
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteLab(lab.id);
+                  }}
+                  className="bg-red-500 text-white px-3 py-1 rounded"
+                >
+                  Supprimer
+                </button>
+
               </div>
+
             </div>
+
           ))}
+
         </div>
 
+        {/* ===================== */}
+        {/* ADD MODAL (IMPORTANT) */}
+        {/* ===================== */}
 
-
-        {/* Fenêtre Détails Machine */}
-        {openModal && selectedMachine && (
+        {openModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
 
             <div className="bg-white w-[450px] rounded-xl shadow-lg p-6 relative">
 
               <button
                 onClick={() => setOpenModal(false)}
-                className="absolute top-3 right-3 text-gray-500"
+                className="absolute top-3 right-3"
               >
                 ✖
               </button>
 
               <h2 className="text-lg font-semibold mb-4">
-                Détails de la machine
+                Ajouter un laboratoire
               </h2>
 
-              <p className="text-blue-600 font-medium mb-4">
-                {selectedMachine.id}
-              </p>
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Nom"
+                className="border p-2 w-full mb-3"
+              />
 
-              <p><b>Nom :</b> {selectedMachine.nom}</p>
-              <p><b>Type :</b> {selectedMachine.type}</p>
-              <p><b>Laboratoire :</b> {selectedMachine.labo}</p>
-              <p><b>Statut :</b> {selectedMachine.status}</p>
-              <p><b>Dernier entretien :</b> {selectedMachine.entretien}</p>
+              <input
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Description"
+                className="border p-2 w-full mb-3"
+              />
+
+              <input
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="Localisation"
+                className="border p-2 w-full mb-3"
+              />
+
+              <input
+                name="capacity"
+                type="number"
+                value={formData.capacity}
+                onChange={handleChange}
+                placeholder="Capacité"
+                className="border p-2 w-full mb-3"
+              />
+
+              <button
+                onClick={addLab}
+                className="bg-green-600 text-white px-4 py-2 rounded w-full"
+              >
+                Ajouter
+              </button>
 
             </div>
 
           </div>
         )}
+
+        {/* ===================== */}
+        {/* DETAILS MODAL */}
+        {/* ===================== */}
+
+        {openDetails && selectedLab && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+
+            <div className="bg-white w-[450px] rounded-xl shadow-lg p-6 relative">
+
+              <button
+                onClick={() => setOpenDetails(false)}
+                className="absolute top-3 right-3"
+              >
+                ✖
+              </button>
+
+              <h2 className="text-lg font-semibold mb-4">
+                Détails laboratoire
+              </h2>
+
+              <p><b>Nom :</b> {selectedLab.name}</p>
+              <p><b>Capacité :</b> {selectedLab.capacity}</p>
+              <p><b>Places dispo :</b> {selectedLab.availableSpots}</p>
+              <p><b>Statut :</b> {selectedLab.available ? "Disponible" : "Occupé"}</p>
+
+              <p className="mt-3"><b>Machines :</b></p>
+
+              <ul className="list-disc ml-5 text-sm text-gray-600">
+                {selectedLab.machines?.map((m: any) => (
+                  <li key={m.id}>{m.name}</li>
+                ))}
+              </ul>
+
+            </div>
+
+          </div>
+        )}
+
       </div>
     </div>
   );

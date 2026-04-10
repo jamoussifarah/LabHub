@@ -24,6 +24,7 @@ export interface Complaint {
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;
+  
 }
  
 export interface CreateComplaintRequest {
