@@ -22,7 +22,14 @@ export const complaintService = {
 
   delete: (id: string): Promise<void> =>
     api.delete(`/complaints/${id}`),
-  // Ajoutez cette méthode à l'objet complaintService existant
+
   assignTechnician: (complaintId: string, technicianId: string): Promise<Complaint> =>
-  api.put(`/complaints/${complaintId}/assign`, { technicianId }),
+    api.put(`/complaints/${complaintId}/assign`, { technicianId }),
+
+  getByTechnician: (technicianId: string): Promise<Complaint[]> =>
+    api.get(`/complaints/technicien/${technicianId}`),
+
+  // body vide ({}) car le paramètre resolution passe en query string
+  resolve: (id: string, resolution: string): Promise<Complaint> =>
+    api.put(`/complaints/${id}/resolve?resolution=${encodeURIComponent(resolution)}`, {}),
 };

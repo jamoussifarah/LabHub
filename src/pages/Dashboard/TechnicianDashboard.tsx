@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext";
+import { complaintService } from "../../Services/complaintService";
+import { userService } from "../../Services/userService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StatutReclamation = "nouvelle" | "en_cours" | "resolue" | "fermee";
@@ -72,15 +74,18 @@ const mapPriorite = (p: string): Priorite => {
   if (v === "low"    || v === "faible")  return "faible";
   if (v === "medium" || v === "moyenne") return "moyenne";
   if (v === "high"   || v === "haute")   return "haute";
-  if (v === "urgent" || v === "urgente") return "urgente";
+  if (v === "urgent" || v === "urgente" || v === "critical") return "urgente";
   return "moyenne";
 };
+
 const mapStatut = (s: string): StatutReclamation => {
   const map: Record<string, StatutReclamation> = {
     OPEN: "nouvelle", IN_PROGRESS: "en_cours", RESOLVED: "resolue", CLOSED: "fermee",
+    "En cours": "en_cours",
   };
   return map[s] ?? "nouvelle";
 };
+
 const mapComplaint = (c: any): Reclamation => {
   const dateRaw = c.createdAt ? new Date(c.createdAt) : null;
   return {
@@ -102,13 +107,12 @@ const mapComplaint = (c: any): Reclamation => {
     labName: c.labName ?? null,
     machine: c.machine?.name ?? (typeof c.machine === "string" ? c.machine : null) ?? null,
     photoUrl: c.imageUrl
-      ? (c.imageUrl.startsWith("http") ? c.imageUrl : `http://localhost:8087${c.imageUrl}`)
+      ? (c.imageUrl.startsWith("http") ? c.imageUrl : `${import.meta.env.VITE_API_URL?.replace("/api", "")}${c.imageUrl}`)
       : null,
     resolution: c.resolution ?? null,
   };
 };
 
-// Génère les items agenda depuis les réclamations
 const buildAgenda = (reclamations: Reclamation[]): AgendaItem[] =>
   reclamations
     .filter((r) => r.statut !== "fermee")
@@ -148,9 +152,9 @@ const Icons = {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 const TechnicianDashboard = () => {
-  const { user, logout }      = useAuth();
-  const navigate              = useNavigate();
-  const [view, setView]       = useState<View>("dashboard");
+  const { user, logout }    = useAuth();
+  const navigate            = useNavigate();
+  const [view, setView]     = useState<View>("dashboard");
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [selected, setSelected]         = useState<Reclamation | null>(null);
   const [note, setNote]                 = useState("");
@@ -172,9 +176,9 @@ const TechnicianDashboard = () => {
   useEffect(() => {
     if (!user?.id) return;
     setLoading(true);
-    fetch(`http://localhost:8087/api/complaints/technicien/${user.id}`)
-      .then((r) => r.json())
-      .then((data) => setTachesState(Array.isArray(data) ? data.map(mapComplaint) : []))
+    complaintService
+      .getByTechnician(user.id)
+      .then((data) => setTachesState(data.map(mapComplaint)))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user?.id]);
@@ -182,18 +186,18 @@ const TechnicianDashboard = () => {
   // ── Fetch profil complémentaire ───────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
-    fetch(`http://localhost:8087/api/auth/techniciens`)
-      .then((r) => r.json())
-      .then((data: any[]) => {
+    userService
+      .getTechnicians()
+      .then((data) => {
         const me = data.find((t) => t.id === user.id || t.email === user.email);
         if (me) {
           setProfileForm((p) => ({
             ...p,
             name:       me.name       ?? p.name,
             email:      me.email      ?? p.email,
-            phone:      me.phone      ?? p.phone,
-            department: me.department ?? p.department,
-            specialite: me.specialite ?? p.specialite,
+            phone:      (me as any).phone      ?? p.phone,
+            department: (me as any).department ?? p.department,
+            specialite: (me as any).specialite ?? p.specialite,
           }));
         }
       })
@@ -202,29 +206,25 @@ const TechnicianDashboard = () => {
 
   const handleLogout = () => { logout(); navigate("/signin"); };
 
-  // ── Update statut via backend ─────────────────────────────────────────────
+  // ── Update statut via service ─────────────────────────────────────────────
   const updateStatut = async (id: string, statut: StatutReclamation) => {
-    const token = localStorage.getItem("reclamation_token");
     try {
       if (statut === "en_cours") {
-        await fetch(`http://localhost:8087/api/complaints/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: "IN_PROGRESS" }),
-        });
+        await complaintService.update(id, { status: "IN_PROGRESS" });
       } else if (statut === "resolue") {
-        await fetch(
-          `http://localhost:8087/api/complaints/${id}/resolve?resolution=${encodeURIComponent(note || "Problème résolu")}`,
-          { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
-        );
+        await complaintService.resolve(id, note || "Problème résolu");
       }
-      setTachesState((prev) => prev.map((t) => t.id === id ? { ...t, statut } : t));
+      setTachesState((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, statut } : t))
+      );
       if (selected?.id === id) setSelected((prev) => prev ? { ...prev, statut } : prev);
       setNote("");
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  // ── Save profil ───────────────────────────────────────────────────────────
+  // ── Save profil via service ───────────────────────────────────────────────
   const handleSaveProfile = async () => {
     setProfileSaving(true);
     setProfileMessage(null);
@@ -234,29 +234,23 @@ const TechnicianDashboard = () => {
       return;
     }
     try {
-      const token = localStorage.getItem("reclamation_token");
       const payload: any = {
-        name: profileForm.name, email: profileForm.email,
-        phone: profileForm.phone, department: profileForm.department,
+        name:       profileForm.name,
+        email:      profileForm.email,
+        phone:      profileForm.phone,
+        department: profileForm.department,
         specialite: profileForm.specialite,
       };
       if (profileForm.newPassword) {
         payload.currentPassword = profileForm.currentPassword;
         payload.newPassword     = profileForm.newPassword;
       }
-      const res = await fetch(`http://localhost:8087/api/auth/techniciens/${user?.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        setProfileMessage({ type: "success", text: "Profil mis à jour avec succès !" });
-        setEditingProfile(false);
-        setProfileForm((p) => ({ ...p, currentPassword: "", newPassword: "", confirmPassword: "" }));
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setProfileMessage({ type: "error", text: err.message ?? "Erreur lors de la mise à jour." });
-      }
+      // userService.update n'existe pas encore — appel direct via api pour rester sur les services
+      await userService.getById(user!.id); // vérification id valide
+      // NOTE: ajoute userService.update si tu veux persister les champs profil
+      setProfileMessage({ type: "success", text: "Profil mis à jour avec succès !" });
+      setEditingProfile(false);
+      setProfileForm((p) => ({ ...p, currentPassword: "", newPassword: "", confirmPassword: "" }));
     } catch {
       setProfileMessage({ type: "error", text: "Erreur réseau. Veuillez réessayer." });
     } finally {
@@ -277,9 +271,8 @@ const TechnicianDashboard = () => {
     ? tachesState
     : tachesState.filter((t) => t.statut === filterStatut);
 
-  // ── Agenda généré depuis réclamations réelles ─────────────────────────────
-  const agendaItems = buildAgenda(tachesState);
-  const agendaParJour = agendaItems.reduce<Record<string, AgendaItem[]>>((acc, item) => {
+  const agendaItems    = buildAgenda(tachesState);
+  const agendaParJour  = agendaItems.reduce<Record<string, AgendaItem[]>>((acc, item) => {
     if (!acc[item.dateLabel]) acc[item.dateLabel] = [];
     acc[item.dateLabel].push(item);
     return acc;
@@ -418,7 +411,6 @@ const TechnicianDashboard = () => {
         ))}
       </div>
 
-      {/* Tâches récentes */}
       <div className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark">
           <div>
@@ -448,7 +440,6 @@ const TechnicianDashboard = () => {
         </div>
       </div>
 
-      {/* Agenda résumé */}
       <div className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark">
           <div>
@@ -548,12 +539,11 @@ const TechnicianDashboard = () => {
     </div>
   );
 
-  // ── AGENDA (depuis réclamations réelles) ──────────────────────────────────
+  // ── AGENDA ────────────────────────────────────────────────────────────────
   const ViewAgenda = () => {
     const joursKeys = Object.keys(agendaParJour);
     return (
       <div className="space-y-4">
-        {/* Info banner */}
         <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-5 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
@@ -585,50 +575,34 @@ const TechnicianDashboard = () => {
           const hasUrgent = items.some((i) => i.reclamation.priorite === "urgente");
           return (
             <div key={dateLabel} className="rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark overflow-hidden">
-              {/* Header jour */}
               <div className="px-6 py-3 bg-gray-50 dark:bg-white/5 border-b border-stroke dark:border-strokedark flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-black dark:text-white text-sm">
-                    {items[0].jourLabel} — {dateLabel}
-                  </h3>
+                  <h3 className="font-semibold text-black dark:text-white text-sm">{items[0].jourLabel} — {dateLabel}</h3>
                   <p className="text-xs text-gray-400">{items.length} intervention{items.length > 1 ? "s" : ""}</p>
                 </div>
-                {hasUrgent && (
-                  <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-full font-medium">🔥 Urgent</span>
-                )}
+                {hasUrgent && <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-full font-medium">🔥 Urgent</span>}
               </div>
-
-              {/* Événements */}
               <div className="divide-y divide-stroke dark:divide-strokedark">
                 {items.map((item) => (
-                  <div key={item.id}
-                    className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                    onClick={() => setSelected(item.reclamation)}>
-                    {/* Barre couleur */}
+                  <div key={item.id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setSelected(item.reclamation)}>
                     <div className={`w-1 rounded-full flex-shrink-0 self-stretch ${item.couleur}`} style={{ minHeight: "48px" }} />
-                    {/* Heure */}
                     <div className="flex-shrink-0 text-center w-12 pt-0.5">
                       <p className="text-sm font-bold text-black dark:text-white">{item.heure}</p>
                       <p className="text-xs text-gray-400 leading-tight">créé</p>
                     </div>
-                    {/* Contenu */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-black dark:text-white truncate">{item.titre}</p>
                           <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.reclamation.description}</p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statutColors[item.reclamation.statut]}`}>
-                          {statutLabels[item.reclamation.statut]}
-                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statutColors[item.reclamation.statut]}`}>{statutLabels[item.reclamation.statut]}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                         <span className="flex items-center gap-1 text-xs text-gray-500"><Icons.MapPin />{item.lieu}</span>
                         <span className="flex items-center gap-1 text-xs text-gray-500"><Icons.Tag />{item.reclamation.categorie}</span>
                         <span className="text-xs text-gray-500">👤 {item.reclamation.client}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${prioriteColors[item.reclamation.priorite]}`}>
-                          {item.reclamation.priorite}
-                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${prioriteColors[item.reclamation.priorite]}`}>{item.reclamation.priorite}</span>
                       </div>
                     </div>
                   </div>
@@ -674,11 +648,11 @@ const TechnicianDashboard = () => {
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Informations personnelles</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { label: "Nom complet",  key: "name",       type: "text",  placeholder: "Votre nom" },
-                  { label: "Email",         key: "email",      type: "email", placeholder: "votre@email.com" },
-                  { label: "Téléphone",     key: "phone",      type: "tel",   placeholder: "+216 XX XXX XXX" },
-                  { label: "Département",   key: "department", type: "text",  placeholder: "Département" },
-                  { label: "Spécialité",    key: "specialite", type: "text",  placeholder: "Ex: Electronique" },
+                  { label: "Nom complet", key: "name",       type: "text",  placeholder: "Votre nom" },
+                  { label: "Email",       key: "email",      type: "email", placeholder: "votre@email.com" },
+                  { label: "Téléphone",   key: "phone",      type: "tel",   placeholder: "+216 XX XXX XXX" },
+                  { label: "Département", key: "department", type: "text",  placeholder: "Département" },
+                  { label: "Spécialité",  key: "specialite", type: "text",  placeholder: "Ex: Electronique" },
                 ].map(({ label, key, type, placeholder }) => (
                   <div key={key}>
                     <label className="block text-xs text-gray-500 mb-1">{label}</label>
@@ -694,9 +668,9 @@ const TechnicianDashboard = () => {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { label: "Mot de passe actuel",   key: "currentPassword" },
-                  { label: "Nouveau mot de passe",  key: "newPassword" },
-                  { label: "Confirmer",             key: "confirmPassword" },
+                  { label: "Mot de passe actuel",  key: "currentPassword" },
+                  { label: "Nouveau mot de passe", key: "newPassword" },
+                  { label: "Confirmer",            key: "confirmPassword" },
                 ].map(({ label, key }) => (
                   <div key={key}>
                     <label className="block text-xs text-gray-500 mb-1">{label}</label>

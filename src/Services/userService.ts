@@ -26,4 +26,6 @@ export const userService = {
 
   getById: (id: string): Promise<User> => 
     api.get(`/auth/users/${id}`),
+  update: (id: string, payload: Partial<User> & { currentPassword?: string; newPassword?: string }): Promise<User> =>
+  api.put(`/auth/techniciens/${id}`, payload),
 };
