@@ -23,10 +23,7 @@ export default function SignInForm() {
     setError("");
     setLoading(true);
 
-    console.log("📤 Soumission login :", { email, password: "***" });
-
     const result = await login(email, password);
-    console.log("🏁 Résultat login :", result);
 
     setLoading(false);
 
@@ -37,8 +34,6 @@ export default function SignInForm() {
     }
 const user = JSON.parse(localStorage.getItem("reclamation_user") || "null");
 
-console.log("👤 User:", user);
-console.log("🔐 Token:", localStorage.getItem("reclamation_token"));
 
 if (!user) {
   console.warn("⚠️ Aucun utilisateur trouvé");
@@ -47,10 +42,8 @@ if (!user) {
 }
 
 if (user.role === "ADMIN") {
-  console.log("🚀 Redirection ADMIN");
-  navigate("/");
+  navigate("/dashboard");
 } else if (user.role === "TECHNICIEN") {
-  console.log("🚀 Redirection TECHNICIEN");
   navigate("/technicien/dashboard");
 } else {
   console.warn("⚠️ Rôle inconnu");

@@ -34,7 +34,8 @@ export default function SignUpForm() {
 
     setLoading(true);
     const result = await register({
-      name: `${firstName} ${lastName}`,
+      name: lastName,
+      firstName:firstName,
       email,
       password,
       role: role.toUpperCase(),
@@ -49,7 +50,7 @@ export default function SignUpForm() {
     // Redirection selon le rôle
     const saved = localStorage.getItem("reclamation_user");
     const user = saved ? JSON.parse(saved) : null;
-    if (user?.role === "ADMIN") navigate("/");
+    if (user?.role === "ADMIN") navigate("/dashboard");
     else if (user?.role === "TECHNICIEN") navigate("/technicien/dashboard");
     else navigate("/signin");
   };

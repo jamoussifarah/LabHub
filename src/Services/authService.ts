@@ -5,12 +5,8 @@ export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const data = await api.post<AuthResponse>("/auth/login", credentials);
 
-    console.log("📥 Réponse login:", data);
-
     setToken(data.token);
-
     localStorage.setItem("reclamation_user", JSON.stringify(data.user));
-
     return data;
   },
 

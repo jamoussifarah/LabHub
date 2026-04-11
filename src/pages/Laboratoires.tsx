@@ -180,7 +180,7 @@ export default function Laboratoires() {
             onClick={openAddModal}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
-            + Ajouter
+            + Ajouter un laboratoire
           </button>
         </div>
 
@@ -225,6 +225,7 @@ export default function Laboratoires() {
                 <p>{lab.description}</p>
                 <p>Capacité : {lab.capacity}</p>
                 <p>Places : {lab.availableSpots}</p>
+                <p>Machines : {lab.machines?.length ?? 0}</p>
               </div>
 
               <div className="flex gap-2 mt-4">

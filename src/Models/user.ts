@@ -9,4 +9,5 @@ export interface User {
   createdAt: string; // ISO date string
   updatedAt: string;
   active: boolean;
+  firstName:string;
 }

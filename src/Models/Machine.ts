@@ -3,4 +3,7 @@ export interface Machine {
   name: string;
   description?: string;
   labId?: string;
+   status: string;
+  Dernier_entretien?: string | null;
+
 }

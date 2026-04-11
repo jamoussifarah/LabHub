@@ -12,7 +12,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  register: (userData: { name: string; email: string; password: string; role?: string }) => Promise<{ success: boolean; message?: string }>;
+  register: (userData: { name: string; email: string; password: string; role?: string,firstName:string }) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -47,12 +47,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ Login échoué :", errorText);
+        console.error(" Login échoué :", errorText);
         return { success: false, message: "Email ou mot de passe incorrect." };
       }
 
       const data = await response.json();
-      console.log("✅ Données reçues :", data);
+      console.log(" Données reçues :", data);
 
       // Vérification de la structure
       if (!data.user || !data.user.roles) {
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const role = extractRole(data.user.roles);
-      console.log("🎭 Rôle extrait :", role);
+      console.log(" Rôle extrait :", role);
 
       const userData: User = {
         id: data.user.id,

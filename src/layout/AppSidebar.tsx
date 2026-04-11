@@ -25,7 +25,7 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Admin Dashboard",
-    subItems: [{ name: "Admin Dashboard", path: "/", pro: false }],
+    subItems: [{ name: "Admin Dashboard", path: "/dashboard", pro: false }],
   },
   {
     icon: <CalenderIcon />,
@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
     name: "Machines et laboratoires",
     icon: <PageIcon />,
     subItems: [
-      { name: "Liste des machines", path: "/blank", pro: false },
+      { name: "Liste des machines", path: "/machines", pro: false },
       { name: "ERROR", path: "/error-404", pro: false },
       {name: "Liste des laboratoires", path: "/laboratoires", pro: false},
     ],

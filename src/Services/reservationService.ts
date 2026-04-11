@@ -1,5 +1,5 @@
+import { CreateReservationRequest, Reservation, ReservationStatus } from "../Models/Reservation";
 import { api } from "./apiClient";
-import type { Reservation, CreateReservationRequest, ReservationStatus } from "../types/models";
 
 export const reservationService = {
   getAll: (): Promise<Reservation[]> =>
