@@ -7,17 +7,25 @@ import { EventInput, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { Modal } from "../components/ui/modal";
 import { useModal } from "../hooks/useModal";
 import PageMeta from "../components/common/PageMeta";
+import { reservationService } from "../Services/reservationService";
 
 interface CalendarEvent extends EventInput {
   extendedProps: {
     calendar: string;
+    status?: string;
+    labName?: string;
+    userName?: string;
+    purpose?: string;
+    startTime?: string;
+    endTime?: string;
+    createdAt?: string;
+    notes?: string;
+    labId?: string;
   };
 }
 
 const Calendar: React.FC = () => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventTitle, setEventTitle] = useState("");
   const [eventStartDate, setEventStartDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
@@ -26,37 +34,53 @@ const Calendar: React.FC = () => {
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
-  const calendarsEvents = {
-    Danger: "danger",
-    Success: "success",
-    Primary: "primary",
-    Warning: "warning",
+  useEffect(() => {
+    loadReservations();
+  }, []);
+
+  const loadReservations = async () => {
+    try {
+      const data = await reservationService.getAll();
+
+      const formattedEvents: CalendarEvent[] = data.map((res) => ({
+        id: res.id,
+        title: res.lab?.name || "Lab", 
+        start: res.startTime,
+        end: res.endTime,
+        extendedProps: {
+          calendar: mapStatusToColor(res.status),
+          status: res.status,
+          labName: res.lab?.name,
+          userName: res.user?.name,
+          purpose: res.purpose,
+          startTime: res.startTime,
+          endTime: res.endTime,
+          createdAt: res.createdAt,
+          notes: res.notes,
+          labId: res.labId,
+        },
+      }));
+
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error("Erreur chargement reservations:", error);
+    }
   };
 
-  useEffect(() => {
-    // Initialize with some events
-    setEvents([
-      {
-        id: "1",
-        title: "Event Conf.",
-        start: new Date().toISOString().split("T")[0],
-        extendedProps: { calendar: "Danger" },
-      },
-      {
-        id: "2",
-        title: "Meeting",
-        start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Success" },
-      },
-      {
-        id: "3",
-        title: "Workshop",
-        start: new Date(Date.now() + 172800000).toISOString().split("T")[0],
-        end: new Date(Date.now() + 259200000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Primary" },
-      },
-    ]);
-  }, []);
+  const mapStatusToColor = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Warning";
+      case "CONFIRMED":
+        return "Success";
+      case "CANCELLED":
+        return "Danger";
+      case "COMPLETED":
+        return "Primary";
+      default:
+        return "Primary";
+    }
+  };
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     resetModalFields();
@@ -66,45 +90,36 @@ const Calendar: React.FC = () => {
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    const event = clickInfo.event;
-    setSelectedEvent(event as unknown as CalendarEvent);
-    setEventTitle(event.title);
-    setEventStartDate(event.start?.toISOString().split("T")[0] || "");
-    setEventEndDate(event.end?.toISOString().split("T")[0] || "");
-    setEventLevel(event.extendedProps.calendar);
+    const event = clickInfo.event as unknown as CalendarEvent;
+
+    setSelectedEvent(event);
+    setEventTitle(event.title ?? "");
+    setEventStartDate(event.start ? event.start.toString().split("T")[0] : "");
+    setEventEndDate(event.end ? event.end.toString().split("T")[0] : "");
+    setEventLevel(event.extendedProps?.calendar ?? "");
+
     openModal();
   };
 
-  const handleAddOrUpdateEvent = () => {
-    if (selectedEvent) {
-      // Update existing event
-      setEvents((prevEvents) =>
-        prevEvents.map((event) =>
-          event.id === selectedEvent.id
-            ? {
-                ...event,
-                title: eventTitle,
-                start: eventStartDate,
-                end: eventEndDate,
-                extendedProps: { calendar: eventLevel },
-              }
-            : event
-        )
-      );
-    } else {
-      // Add new event
-      const newEvent: CalendarEvent = {
-        id: Date.now().toString(),
-        title: eventTitle,
-        start: eventStartDate,
-        end: eventEndDate,
-        allDay: true,
-        extendedProps: { calendar: eventLevel },
-      };
-      setEvents((prevEvents) => [...prevEvents, newEvent]);
+  const handleAddOrUpdateEvent = async () => {
+    try {
+      if (!selectedEvent) {
+        await reservationService.create({
+          purpose: eventTitle,
+          startTime: eventStartDate,
+          endTime: eventEndDate,
+          userId: "69d65069168762fb904b1a1c",
+          labId: "69d65069168762fb904b1a1d",
+        });
+
+        await loadReservations();
+      }
+
+      closeModal();
+      resetModalFields();
+    } catch (error) {
+      console.error(error);
     }
-    closeModal();
-    resetModalFields();
   };
 
   const resetModalFields = () => {
@@ -115,13 +130,25 @@ const Calendar: React.FC = () => {
     setSelectedEvent(null);
   };
 
+  const formatDateTime = (dateString?: string) => {
+  if (!dateString) return "—";
+
+  const date = new Date(dateString);
+
+  return date.toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
   return (
     <>
-      <PageMeta
-        title="React.js Calendar Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Calendar Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
-      />
-      <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <PageMeta title="Calendar Dashboard" description="Reservations Calendar" />
+
+      <div className="rounded-2xl border border-gray-200 bg-white dark:bg-gray-900">
         <div className="custom-calendar">
           <FullCalendar
             ref={calendarRef}
@@ -139,127 +166,75 @@ const Calendar: React.FC = () => {
             eventContent={renderEventContent}
             customButtons={{
               addEventButton: {
-                text: "Add Event +",
+                text: "Ajouter réservation +",
                 click: openModal,
               },
             }}
           />
         </div>
-        <Modal
-          isOpen={isOpen}
-          onClose={closeModal}
-          className="max-w-[700px] p-6 lg:p-10"
-        >
-          <div className="flex flex-col px-2 overflow-y-auto custom-scrollbar">
-            <div>
-              <h5 className="mb-2 font-semibold text-gray-800 modal-title text-theme-xl dark:text-white/90 lg:text-2xl">
-                {selectedEvent ? "Edit Event" : "Add Event"}
-              </h5>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Plan your next big moment: schedule or edit an event to stay on
-                track
-              </p>
-            </div>
-            <div className="mt-8">
-              <div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                    Event Title
-                  </label>
-                  <input
-                    id="event-title"
-                    type="text"
-                    value={eventTitle}
-                    onChange={(e) => setEventTitle(e.target.value)}
-                    className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                  />
-                </div>
-              </div>
-              <div className="mt-6">
-                <label className="block mb-4 text-sm font-medium text-gray-700 dark:text-gray-400">
-                  Event Color
-                </label>
-                <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-                  {Object.entries(calendarsEvents).map(([key, value]) => (
-                    <div key={key} className="n-chk">
-                      <div
-                        className={`form-check form-check-${value} form-check-inline`}
-                      >
-                        <label
-                          className="flex items-center text-sm text-gray-700 form-check-label dark:text-gray-400"
-                          htmlFor={`modal${key}`}
-                        >
-                          <span className="relative">
-                            <input
-                              className="sr-only form-check-input"
-                              type="radio"
-                              name="event-level"
-                              value={key}
-                              id={`modal${key}`}
-                              checked={eventLevel === key}
-                              onChange={() => setEventLevel(key)}
-                            />
-                            <span className="flex items-center justify-center w-5 h-5 mr-2 border border-gray-300 rounded-full box dark:border-gray-700">
-                              <span
-                                className={`h-2 w-2 rounded-full bg-white ${
-                                  eventLevel === key ? "block" : "hidden"
-                                }`}
-                              ></span>
-                            </span>
-                          </span>
-                          {key}
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="mt-6">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                  Enter Start Date
-                </label>
-                <div className="relative">
-                  <input
-                    id="event-start-date"
-                    type="date"
-                    value={eventStartDate}
-                    onChange={(e) => setEventStartDate(e.target.value)}
-                    className="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                  />
-                </div>
-              </div>
+        {/* MODAL */}
+        <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] p-6">
+          <div className="space-y-4">
 
-              <div className="mt-6">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                  Enter End Date
-                </label>
-                <div className="relative">
-                  <input
-                    id="event-end-date"
-                    type="date"
-                    value={eventEndDate}
-                    onChange={(e) => setEventEndDate(e.target.value)}
-                    className="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                  />
-                </div>
+            <h2 className="text-xl font-bold">
+              {selectedEvent ? "Détails de la réservation" : "Ajouter réservation"}
+            </h2>
+
+            {/* ✅ DETAILS COMPLETS */}
+            {selectedEvent && (
+              <div className="bg-gray-100 p-4 rounded-lg space-y-2 text-sm">
+                <p><b>Lab :</b> {selectedEvent.extendedProps.labName}</p>
+                <p><b>User :</b> {selectedEvent.extendedProps.userName}</p>
+                <p><b>Purpose :</b> {selectedEvent.extendedProps.purpose}</p>
+                <p><b>Status :</b> {selectedEvent.extendedProps.status}</p>
+                <p><b>Start :</b> {formatDateTime(selectedEvent.extendedProps.startTime)}</p>
+                <p><b>End :</b> {formatDateTime(selectedEvent.extendedProps.endTime)}</p>
+                
+                
               </div>
-            </div>
-            <div className="flex items-center gap-3 mt-6 modal-footer sm:justify-end">
-              <button
-                onClick={closeModal}
-                type="button"
-                className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto"
-              >
+            )}
+
+            {/* FORM */}
+            {!selectedEvent && (
+              <>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  placeholder="Purpose"
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="date"
+                  value={eventStartDate}
+                  onChange={(e) => setEventStartDate(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="date"
+                  value={eventEndDate}
+                  onChange={(e) => setEventEndDate(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+              </>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={closeModal} className="border px-4 py-2 rounded">
                 Close
               </button>
-              <button
-                onClick={handleAddOrUpdateEvent}
-                type="button"
-                className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto"
-              >
-                {selectedEvent ? "Update Changes" : "Add Event"}
-              </button>
+
+              {!selectedEvent && (
+                <button
+                  onClick={handleAddOrUpdateEvent}
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                >
+                  Ajouter
+                </button>
+              )}
             </div>
           </div>
         </Modal>
@@ -268,15 +243,20 @@ const Calendar: React.FC = () => {
   );
 };
 
+/* 🎨 EVENT DESIGN */
 const renderEventContent = (eventInfo: any) => {
   const colorClass = `fc-bg-${eventInfo.event.extendedProps.calendar.toLowerCase()}`;
+
   return (
     <div
-      className={`event-fc-color flex fc-event-main ${colorClass} p-1 rounded-sm`}
+      className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-black ${colorClass}`}
+      style={{
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
+      }}
     >
-      <div className="fc-daygrid-event-dot"></div>
-      <div className="fc-event-time">{eventInfo.timeText}</div>
-      <div className="fc-event-title">{eventInfo.event.title}</div>
+      <span className="truncate">{eventInfo.event.title}</span>
     </div>
   );
 };
