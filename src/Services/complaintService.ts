@@ -26,9 +26,10 @@ export const complaintService = {
   assignTechnician: (complaintId: string, technicianId: string): Promise<Complaint> =>
     api.put(`/complaints/${complaintId}/assign`, { technicianId }),
 
-  getByTechnician: (technicianId: string): Promise<Complaint[]> =>
-    api.get(`/complaints/technicien/${technicianId}`),
-
+  getByTechnician: async (technicianId: string): Promise<Complaint[]> => {
+  const all = await api.get<Complaint[]>("/complaints");
+  return all.filter((c: any) => c.technicien?.id === technicianId);
+},
   // body vide ({}) car le paramètre resolution passe en query string
   resolve: (id: string, resolution: string): Promise<Complaint> =>
     api.put(`/complaints/${id}/resolve?resolution=${encodeURIComponent(resolution)}`, {}),

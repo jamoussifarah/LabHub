@@ -1,7 +1,6 @@
 import { Lab } from "./Lab";
 import { Machine } from "./Machine";
 import { User } from "./user";
-
 export type ComplaintStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type ComplaintPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
  

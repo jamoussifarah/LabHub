@@ -42,9 +42,14 @@ export const mapComplaint = (c: Complaint): Reclamation => {
     technicienAssigneNom: null,
     labId:    c.labId   ?? undefined,
     labName:  c.labName ?? undefined,
-    machine:  c.machine
-      ? (typeof c.machine === "object" ? (c.machine as any).name : c.machine)
-      : undefined,
+    machine: (() => {
+    if (!c.machine) return undefined;
+     if (typeof c.machine === "object") return (c.machine as any).name ?? undefined;
+     if (typeof c.machine === "string") {
+    try { return JSON.parse(c.machine).name ?? undefined; } catch {}
+     }
+  return undefined;
+})(),
     photoUrl: c.imageUrl
       ? (c.imageUrl.startsWith("http") ? c.imageUrl : `${base}${c.imageUrl}`)
       : null,

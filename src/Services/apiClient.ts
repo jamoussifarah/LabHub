@@ -1,11 +1,8 @@
 const BASE_URL = import.meta.env.VITE_API_URL;
 
-
 export const getToken = (): string | null => localStorage.getItem("reclamation_token");
 export const setToken = (token: string) => localStorage.setItem("reclamation_token", token);
 export const removeToken = () => localStorage.removeItem("reclamation_token");
-
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -15,14 +12,11 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
 }
-
-
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
-
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

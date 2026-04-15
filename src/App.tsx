@@ -13,7 +13,7 @@ import FormElements from "./pages/Forms/FormElements";
 import BasicTables from "./pages/Tables/BasicTables";
 
 import AppLayout from "./layout/AppLayout";
-import TechnicianDashboard from "./pages/Dashboard/TechnicianDashboard";
+import TechnicianDashboard from "./features/technician/TechnicianDashboard";
 import Home from "./pages/Dashboard/Home";
 
 import ProtectedRoute from "./components/common/ProtectedRoute";

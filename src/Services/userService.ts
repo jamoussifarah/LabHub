@@ -8,20 +8,32 @@ export const userService = {
 
   // Filtre les techniciens (si ton backend n'a pas d'endpoint dédié, 
   // tu peux filtrer côté client ou utiliser un endpoint spécifique)
-  getTechnicians: async (): Promise<User[]> => {
+ /* getTechnicians: async (): Promise<User[]> => {
   try {
     const techs = await api.get<User[]>("/auth/techniciens");
-    console.log("✅ Techniciens reçus:", techs);
+    console.log(" Techniciens reçus:", techs);
     return techs;
   } catch (err) {
-    console.error("❌ Erreur getTechniciens:", err);
+    console.error("Erreur getTechniciens:", err);
     const allUsers = await api.get<User[]>("/auth/users");
     return allUsers.filter(u => 
       u.roles?.includes("TECHNICIEN") || 
       u.roles?.includes("TECHNICIAN")
     );
   }
+},*/
+getTechnicians: async (): Promise<User[]> => {
+  try {
+    const techs = await api.get<User[]>("/users/techniciens"); // ← bonne URL
+    console.log("Techniciens reçus:", techs);
+    return techs;
+  } catch (err) {
+    console.error("Erreur getTechniciens:", err);
+    return [];
+  }
 },
+
+   
   // Dans userService.ts
 
   getById: (id: string): Promise<User> => 
