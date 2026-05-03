@@ -10,11 +10,23 @@ interface Props {
 export default function ProtectedRoute({ children, allowedRole }: Props) {
   const { user, isAuthenticated } = useAuth();
 
-  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
 
-  if (user?.role !== allowedRole) {
-    if (user?.role === "admin")      return <Navigate to="/" replace />;
-    if (user?.role === "technicien") return <Navigate to="/technicien/dashboard" replace />;
+  const role = user?.role;
+
+  if (role !== allowedRole) {
+    const r = String(role);
+
+    if (r === "admin") {
+      return <Navigate to="/" replace />;
+    }
+
+    if (r === "technicien") {
+      return <Navigate to="/technicien/dashboard" replace />;
+    }
+
     return <Navigate to="/signin" replace />;
   }
 
