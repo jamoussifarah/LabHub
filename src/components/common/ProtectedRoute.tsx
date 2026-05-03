@@ -1,4 +1,4 @@
-import { Navigate } from "react-router";
+import { Navigate } from "react-router-dom";
 import { useAuth, Role } from "../../context/AuthContext";
 import { ReactNode } from "react";
 
@@ -10,24 +10,21 @@ interface Props {
 export default function ProtectedRoute({ children, allowedRole }: Props) {
   const { user, isAuthenticated } = useAuth();
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/signin" replace />;
   }
 
-  const role = user?.role;
+  if (user.role !== allowedRole) {
+    switch (user.role) {
+      case "admin":
+        return <Navigate to="/" replace />;
 
-  if (role !== allowedRole) {
-    const r = String(role);
+      case "technicien":
+        return <Navigate to="/technicien/dashboard" replace />;
 
-    if (r === "admin") {
-      return <Navigate to="/" replace />;
+      default:
+        return <Navigate to="/signin" replace />;
     }
-
-    if (r === "technicien") {
-      return <Navigate to="/technicien/dashboard" replace />;
-    }
-
-    return <Navigate to="/signin" replace />;
   }
 
   return <>{children}</>;
